@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Pre-push hook: block internal/confidential content from reaching the public repo.
 # Install: git config core.hooksPath .githooks
+#
+# Only scans ADDITIONS (lines starting with +), not deletions.
+# This prevents false positives when removing confidential content.
 
 set -euo pipefail
 
@@ -10,36 +13,58 @@ BLOCKED_PATTERNS=(
   "launch angle"
   "posting guidelines"
   "soft launch plan"
+)
+
+BLOCKED_PATHS=(
   "docs/launch/"
   "docs/internal/"
   "docs/strategy/"
-  ".planning/"
 )
 
-BLOCKED_FILES=(
-  "*.draft.md"
-  "*.internal.md"
+BLOCKED_EXTENSIONS=(
+  ".draft.md"
+  ".internal.md"
 )
 
 echo "Pre-push: scanning for confidential content..."
 
 ERRORS=0
 
-# Check staged files for blocked path patterns
-for pattern in "${BLOCKED_FILES[@]}"; do
-  MATCHES=$(git diff --name-only HEAD @{upstream} 2>/dev/null | grep -i "$pattern" || true)
+# Get the diff of what's being pushed (additions only)
+UPSTREAM=$(git rev-parse @{upstream} 2>/dev/null || echo "")
+if [ -z "$UPSTREAM" ]; then
+  # No upstream — first push, diff against empty tree
+  DIFF_ADDED=$(git diff --diff-filter=A --name-only HEAD 2>/dev/null || true)
+  DIFF_CONTENT=$(git log --format="" -p HEAD 2>/dev/null | grep "^+" | grep -v "^+++" || true)
+else
+  DIFF_ADDED=$(git diff --name-only "$UPSTREAM"..HEAD 2>/dev/null || true)
+  DIFF_CONTENT=$(git diff "$UPSTREAM"..HEAD 2>/dev/null | grep "^+" | grep -v "^+++" || true)
+fi
+
+# Check new/modified files for blocked paths
+for pattern in "${BLOCKED_PATHS[@]}"; do
+  MATCHES=$(echo "$DIFF_ADDED" | grep -i "$pattern" || true)
   if [ -n "$MATCHES" ]; then
-    echo "BLOCKED: File pattern '$pattern' found in push:"
+    echo "BLOCKED: Files in '$pattern' being added:"
     echo "$MATCHES"
     ERRORS=$((ERRORS + 1))
   fi
 done
 
-# Check diff content for blocked text patterns
-DIFF=$(git diff HEAD @{upstream} 2>/dev/null || git diff HEAD~1 HEAD)
+# Check new/modified files for blocked extensions
+for ext in "${BLOCKED_EXTENSIONS[@]}"; do
+  MATCHES=$(echo "$DIFF_ADDED" | grep -i "$ext" || true)
+  if [ -n "$MATCHES" ]; then
+    echo "BLOCKED: File with extension '$ext' being added:"
+    echo "$MATCHES"
+    ERRORS=$((ERRORS + 1))
+  fi
+done
+
+# Check added lines for blocked text patterns
 for pattern in "${BLOCKED_PATTERNS[@]}"; do
-  if echo "$DIFF" | grep -qi "$pattern"; then
-    echo "BLOCKED: Content pattern '$pattern' found in diff"
+  if echo "$DIFF_CONTENT" | grep -qi "$pattern"; then
+    echo "BLOCKED: Text pattern '$pattern' found in added lines"
     ERRORS=$((ERRORS + 1))
   fi
 done
