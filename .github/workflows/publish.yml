@@ -16,7 +16,7 @@ jobs:
         with: { version: latest }
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "lts/*"
           cache: "pnpm"
           registry-url: "https://registry.npmjs.org"
       - run: pnpm install --frozen-lockfile
