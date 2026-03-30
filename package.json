@@ -1,5 +1,5 @@
 {
-  "name": "ottersight-scanner",
+  "name": "ottersight-cli-monorepo",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.0.0",
