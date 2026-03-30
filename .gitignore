@@ -3,3 +3,11 @@ dist/
 *.tsbuildinfo
 .env
 man/
+
+# Internal / confidential — never commit to public repo
+docs/launch/
+docs/internal/
+docs/strategy/
+*.draft.md
+*.internal.md
+.planning/

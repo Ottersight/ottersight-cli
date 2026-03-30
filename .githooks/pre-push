@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Pre-push hook: block internal/confidential content from reaching the public repo.
+# Install: git config core.hooksPath .githooks
+
+set -euo pipefail
+
+BLOCKED_PATTERNS=(
+  "DO NOT PUBLISH"
+  "internal strategy"
+  "launch angle"
+  "posting guidelines"
+  "soft launch plan"
+  "docs/launch/"
+  "docs/internal/"
+  "docs/strategy/"
+  ".planning/"
+)
+
+BLOCKED_FILES=(
+  "*.draft.md"
+  "*.internal.md"
+)
+
+echo "Pre-push: scanning for confidential content..."
+
+ERRORS=0
+
+# Check staged files for blocked path patterns
+for pattern in "${BLOCKED_FILES[@]}"; do
+  MATCHES=$(git diff --name-only HEAD @{upstream} 2>/dev/null | grep -i "$pattern" || true)
+  if [ -n "$MATCHES" ]; then
+    echo "BLOCKED: File pattern '$pattern' found in push:"
+    echo "$MATCHES"
+    ERRORS=$((ERRORS + 1))
+  fi
+done
+
+# Check diff content for blocked text patterns
+DIFF=$(git diff HEAD @{upstream} 2>/dev/null || git diff HEAD~1 HEAD)
+for pattern in "${BLOCKED_PATTERNS[@]}"; do
+  if echo "$DIFF" | grep -qi "$pattern"; then
+    echo "BLOCKED: Content pattern '$pattern' found in diff"
+    ERRORS=$((ERRORS + 1))
+  fi
+done
+
+if [ "$ERRORS" -gt 0 ]; then
+  echo ""
+  echo "Push rejected: $ERRORS confidential content pattern(s) detected."
+  echo "If this is intentional, use: git push --no-verify"
+  exit 1
+fi
+
+echo "Pre-push: clean — no confidential content detected."
+exit 0
