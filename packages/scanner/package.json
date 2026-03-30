@@ -4,6 +4,11 @@
   "type": "module",
   "description": "OtterSight scanner core - SBOM + CVE + EUVD + KEV enrichment",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ottersight/ottersight-cli",
+    "directory": "packages/scanner"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

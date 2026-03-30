@@ -4,6 +4,11 @@
   "type": "module",
   "description": "ottersight - local SCA scanner CLI",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ottersight/ottersight-cli",
+    "directory": "packages/cli"
+  },
   "bin": {
     "ottersight": "./dist/index.js"
   },
