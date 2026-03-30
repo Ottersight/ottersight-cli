@@ -64,6 +64,14 @@ curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh 
 - **EUVD mapping** — maps CVE IDs to EU Vulnerability Database IDs for NIS2/CRA compliance
 - **Version tracking** — queries npm, PyPI, crates.io, Go proxy, Maven Central, and more
 
+## OtterSight Cloud
+
+> **OtterSight CLI** is the free, open-source scanner. **OtterSight Cloud** is the hosted service.
+
+OtterSight Cloud is currently being built. Automated scheduled scanning, a multi-repo dashboard, notifications when new CVEs hit your dependencies, and EU compliance reporting (NIS2/CRA) — across all your GitHub and GitLab repos.
+
+Sign up early at **[ottersight.com](https://ottersight.com)** for a launch discount.
+
 ## Programmatic Usage
 
 ```typescript
