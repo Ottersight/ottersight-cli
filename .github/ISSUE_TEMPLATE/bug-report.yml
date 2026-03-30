@@ -1,0 +1,62 @@
+name: Bug Report
+description: Report a bug in the OtterSight CLI or scanner
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect to happen, and what actually happened?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Run `ottersight scan .`\n2. ..."
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - macOS
+        - Linux (Ubuntu/Debian)
+        - Linux (other)
+        - Windows (WSL)
+    validations:
+      required: true
+  - type: input
+    id: node-version
+    attributes:
+      label: Node.js version
+      placeholder: "e.g. 20.11.0"
+    validations:
+      required: true
+  - type: input
+    id: cli-version
+    attributes:
+      label: "@ottersight/cli version"
+      placeholder: "e.g. 0.1.2"
+    validations:
+      required: true
+  - type: input
+    id: syft-version
+    attributes:
+      label: Syft version
+      placeholder: "e.g. 1.8.0"
+    validations:
+      required: false
+  - type: input
+    id: grype-version
+    attributes:
+      label: Grype version
+      placeholder: "e.g. 0.74.0"
+    validations:
+      required: false

@@ -1,0 +1,14 @@
+name: Security Vulnerability
+description: Report a security vulnerability
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Do not open a public issue for security vulnerabilities.
+
+        Please follow the responsible disclosure process in [SECURITY.md](../SECURITY.md).
+
+        Email **security@ottersight.com** directly.
+
+        This issue will be closed immediately if it contains vulnerability details.

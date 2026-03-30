@@ -67,6 +67,11 @@ docker run --rm -v $(pwd):/repo ottersight/cli scan /repo
 docker run --rm -v $(pwd):/repo ottersight/cli scan /repo --output /repo/report.md
 ```
 
+## OtterSight Cloud
+
+**OtterSight CLI** is the free, open-source scanner. **[OtterSight Cloud](https://ottersight.com)** adds automated scheduled scanning, a multi-repo dashboard, notifications, and EU compliance reporting (NIS2/CRA). currently being built — sign up early for a launch discount.
+
+
 ## Library
 
 For programmatic use, see [`@ottersight/scanner`](../scanner/README.md).
