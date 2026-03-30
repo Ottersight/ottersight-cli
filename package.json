@@ -1,0 +1,16 @@
+{
+  "name": "ottersight-scanner",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "vitest run",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.0",
+    "typescript": "^5.7.0"
+  }
+}

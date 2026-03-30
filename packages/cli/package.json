@@ -1,0 +1,40 @@
+{
+  "name": "@ottersight/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "ottersight - local SCA scanner CLI",
+  "license": "MIT",
+  "bin": {
+    "ottersight": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "man"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@ottersight/scanner": "file:../scanner",
+    "chalk": "^5.6.2",
+    "cli-table3": "^0.6.5",
+    "commander": "^14.0.3",
+    "ora": "^9.3.0",
+    "which": "^6.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/which": "^3.0.4",
+    "tsup": "^8.5.1",
+    "typescript": "^5.8.2"
+  },
+  "scripts": {
+    "build": "tsup",
+    "postbuild": "mkdir -p man && node dist/index.js --help | commander-to-man > man/ottersight.1 2>/dev/null || true",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  }
+}
