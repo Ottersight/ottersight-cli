@@ -26,12 +26,12 @@ Summary: 127 components · 7 vulnerabilities · 2 actively exploited (KEV) · 3 
 
 ```mermaid
 graph TB
-    subgraph Public["Public Packages (MIT)"]
+    subgraph Public["Published on npm (MIT)"]
         CLI["@ottersight/cli<br/><i>Terminal & CI</i>"]
         MCP["@ottersight/mcp<br/><i>AI Assistants</i>"]
     end
 
-    subgraph Internal["Internal (not published to npm)"]
+    subgraph Core["Open Source (bundled, not on npm)"]
         Scanner["@ottersight/scanner<br/><i>Scan engine</i>"]
     end
 
@@ -46,8 +46,8 @@ graph TB
         Registries["Package Registries<br/><i>npm, PyPI, crates.io, ...</i>"]
     end
 
-    User["👤 Developer"] --> CLI
-    AI["🤖 Claude / AI Assistant"] --> MCP
+    User["Developer"] --> CLI
+    AI["AI Assistant"] --> MCP
     CLI --> Scanner
     MCP --> Scanner
     Scanner --> Syft
@@ -56,19 +56,19 @@ graph TB
     Scanner --> EUVD
     Scanner --> Registries
 
-    Cloud["☁️ OtterSight Cloud<br/><i>ottersight.com</i>"]
-    Scanner -.->|"same engine"| Cloud
+    Cloud["OtterSight Cloud<br/><i>planned — ottersight.com</i>"]
+    Scanner -.->|"planned"| Cloud
 
     style Public fill:#d4edda,stroke:#28a745
-    style Internal fill:#fff3cd,stroke:#ffc107
+    style Core fill:#fff3cd,stroke:#ffc107
     style Tools fill:#e2e3e5,stroke:#6c757d
     style Enrichment fill:#cce5ff,stroke:#004085
-    style Cloud fill:#f8d7da,stroke:#dc3545
+    style Cloud fill:#f0f0f0,stroke:#999,stroke-dasharray: 5 5
 ```
 
-**How it works:** Both the CLI and the MCP server use the same internal scanner engine. The scanner orchestrates [Syft](https://github.com/anchore/syft) (SBOM) and [Grype](https://github.com/anchore/grype) (CVE matching), then enriches results with [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) data (actively exploited vulnerabilities), [EUVD](https://euvd.enisa.europa.eu/) mappings (EU NIS2/CRA compliance), and latest version lookups from package registries.
+**How it works:** Both the CLI and the MCP server use the same scanner engine. The scanner orchestrates [Syft](https://github.com/anchore/syft) (SBOM) and [Grype](https://github.com/anchore/grype) (CVE matching), then enriches results with [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) data (actively exploited vulnerabilities), [EUVD](https://euvd.enisa.europa.eu/) mappings (EU NIS2/CRA compliance), and latest version lookups from package registries.
 
-The scanner is an internal package — it powers both the CLI and [OtterSight Cloud](https://ottersight.com) but is not published to npm separately.
+The scanner (`packages/scanner/`) is the core engine — open source and accepting contributions, but bundled into the CLI and MCP packages at build time rather than published to npm separately. If you want to improve the scanning pipeline, that's where to look.
 
 ## Two Ways to Scan
 
@@ -174,11 +174,11 @@ Then type `/ottersight-scan` in any Claude Code conversation to scan your curren
 
 ## OtterSight Cloud
 
-> **This repo** is the free, open-source scanner. **[OtterSight Cloud](https://ottersight.com)** is the hosted service.
+> **Coming soon.** [OtterSight Cloud](https://ottersight.com) will be the hosted service built on this scanner engine.
 
-The CLI scans one project at a time, locally. OtterSight Cloud adds scheduled scanning across all your repos, a multi-repo dashboard, notifications when new CVEs drop, and EU compliance reporting (NIS2/CRA).
+The CLI scans one project at a time, locally. OtterSight Cloud will add scheduled scanning across all your repos, a multi-repo dashboard, notifications when new CVEs drop, and EU compliance reporting (NIS2/CRA).
 
-Sign up early at **[ottersight.com](https://ottersight.com)** for a launch discount.
+Sign up for early access at **[ottersight.com](https://ottersight.com)**.
 
 ## Development
 
@@ -193,10 +193,21 @@ pnpm typecheck  # Type-check
 
 ```
 packages/
-├── scanner/   Internal scan engine (Syft + Grype + KEV + EUVD + registries)
+├── scanner/   Scan engine — Syft + Grype orchestration, KEV/EUVD enrichment, registry lookups
+│              Open source, bundled into CLI and MCP at build time (not published to npm)
 ├── cli/       CLI tool — imports scanner, renders terminal/markdown output
 └── mcp/       MCP server — imports scanner, exposes tools to AI assistants
 ```
+
+### Contributing to the Scanner
+
+The scanner at `packages/scanner/` is the heart of OtterSight. It handles:
+- Syft/Grype orchestration (`scan.ts`)
+- CISA KEV lookups (`kev.ts`)
+- EUVD mapping (`euvd.ts`)
+- Package registry version checks (`registries.ts`)
+
+Improvements here automatically benefit both the CLI and MCP packages. See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
 ## Contributing
 
