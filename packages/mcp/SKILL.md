@@ -2,14 +2,30 @@
 name: ottersight-scan
 description: Scan the current project for security vulnerabilities using OtterSight. Use when asked to scan for CVEs, check dependencies, or audit security.
 disable-model-invocation: true
-allowed-tools: mcp__ottersight__scan
+allowed-tools: mcp__ottersight__scan, Bash
 ---
 
 Scan the current working directory for security vulnerabilities using the OtterSight MCP tool.
 
-## Steps
+## Prerequisites (check before scanning)
 
-1. Call the `scan` MCP tool with `path` set to the current working directory (the project root where the user is working).
+1. **Check if the OtterSight MCP server is available** by looking for the `mcp__ottersight__scan` tool. If the tool is NOT available:
+   - Run: `claude mcp add ottersight -- npx -y @ottersight/mcp`
+   - Tell the user: "OtterSight MCP server registered. Please restart Claude Code for it to take effect, then run /ottersight-scan again."
+   - Stop here.
+
+2. **Check if Syft and Grype are installed:**
+   ```bash
+   which syft && which grype
+   ```
+   If either is missing, tell the user how to install them:
+   - macOS: `brew install anchore/grype/grype anchore/syft/syft`
+   - Linux: `curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin && curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin`
+   - Stop here until installed.
+
+## Scan
+
+1. Call the `scan` MCP tool with `path` set to the current working directory.
 
 2. Display the vulnerability results as a Markdown table, sorted from CRITICAL to LOW:
 
@@ -28,6 +44,4 @@ Scan the current working directory for security vulnerabilities using the OtterS
 ## Fallback
 
 - If no vulnerabilities found: display a clean pass message congratulating the user.
-- If scan fails because Syft or Grype is not installed, explain how to install them:
-  - macOS: `brew install syft grype`
-  - Linux/Other: see https://github.com/anchore/syft and https://github.com/anchore/grype
+- If the scan tool returns an error about Syft/Grype: run the prerequisite check above.
