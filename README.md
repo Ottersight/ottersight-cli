@@ -92,18 +92,17 @@ Output: colored terminal table grouped by severity, summary line, optional `--ou
 
 ### `@ottersight/mcp` — for AI assistants
 
-The MCP server. Connects OtterSight scanning to Claude Desktop, Claude Code, and any other MCP-compatible AI assistant. Run `/ottersight-scan` in Claude Code to scan your current project without leaving your editor.
+The MCP server. Connects OtterSight scanning to Claude Desktop, Claude Code, and any other MCP-compatible AI assistant.
+
+**One command to install:**
 
 ```bash
-# Claude Code: register MCP server
-claude mcp add ottersight -- npx -y @ottersight/mcp
-
-# Claude Code: install the skill (enables /ottersight-scan command)
-mkdir -p ~/.claude/skills/ottersight-scan
-cp node_modules/@ottersight/mcp/SKILL.md ~/.claude/skills/ottersight-scan/SKILL.md
+mkdir -p ~/.claude/skills/ottersight-scan && curl -sSL \
+  https://raw.githubusercontent.com/Ottersight/ottersight-cli/main/packages/mcp/SKILL.md \
+  -o ~/.claude/skills/ottersight-scan/SKILL.md
 ```
 
-Then type `/ottersight-scan` in any Claude Code conversation to scan your current project.
+Then type `/ottersight-scan` in Claude Code. The skill self-bootstraps — it registers the MCP server, checks for Syft/Grype, and runs the scan automatically. No manual setup needed.
 
 ### Which one do I need?
 
@@ -148,21 +147,23 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ### Claude Code
 
-Register the MCP server:
+Install the skill (one command):
 
 ```bash
-claude mcp add ottersight -- npx -y @ottersight/mcp
-```
-
-Install the `/ottersight-scan` skill so you can trigger scans with a single command:
-
-```bash
-mkdir -p ~/.claude/skills/ottersight-scan
-curl -sSL https://raw.githubusercontent.com/Ottersight/ottersight-cli/main/packages/mcp/SKILL.md \
+mkdir -p ~/.claude/skills/ottersight-scan && curl -sSL \
+  https://raw.githubusercontent.com/Ottersight/ottersight-cli/main/packages/mcp/SKILL.md \
   -o ~/.claude/skills/ottersight-scan/SKILL.md
 ```
 
-Then type `/ottersight-scan` in any Claude Code conversation to scan your current project.
+Then type `/ottersight-scan` — the skill auto-registers the MCP server on first use.
+
+<details>
+<summary>Manual setup (if you prefer)</summary>
+
+```bash
+claude mcp add --scope user ottersight -- npx -y @ottersight/mcp
+```
+</details>
 
 ### Available Tools
 
@@ -171,6 +172,23 @@ Then type `/ottersight-scan` in any Claude Code conversation to scan your curren
 | `scan` | Scan a directory for CVEs (Syft + Grype + KEV + EUVD enrichment) |
 | `check-kev` | Check if a CVE is in the CISA Known Exploited Vulnerabilities catalog |
 | `lookup-euvd` | Look up the EU Vulnerability Database ID for a given CVE |
+
+## Managing False Positives
+
+Some npm packages ship Go binaries (e.g., esbuild). Grype detects Go stdlib CVEs in these binaries, even though they're build tools — not runtime dependencies. Create a `.grype.yaml` in your project root to exclude them:
+
+```yaml
+ignore:
+  # Go binaries in node_modules are build tools, not runtime code
+  - package:
+      type: go-module
+      name: stdlib
+  - package:
+      type: go-module
+      name: github.com/evanw/esbuild
+```
+
+This reduces noise and lets you focus on vulnerabilities that actually matter.
 
 ## OtterSight Cloud
 
