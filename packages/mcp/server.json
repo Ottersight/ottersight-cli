@@ -1,0 +1,20 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ottersight/ottersight",
+  "description": "Security vulnerability scanner for local repos. Wraps Syft + Grype with CISA KEV and EU Vulnerability Database (EUVD) enrichment.",
+  "repository": {
+    "url": "https://github.com/Ottersight/ottersight-cli",
+    "source": "github"
+  },
+  "version": "0.1.3",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@ottersight/mcp",
+      "version": "0.1.3",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
