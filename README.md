@@ -121,7 +121,10 @@ Syft and Grype must be on `PATH` (not needed with Docker):
 # macOS
 brew install anchore/grype/grype anchore/syft/syft
 
-# Linux
+# Linux (Homebrew)
+brew install anchore/grype/grype anchore/syft/syft
+
+# Linux (install script — works on any distro including Alpine, Debian, Ubuntu)
 curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
 curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
 ```

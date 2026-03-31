@@ -28,8 +28,10 @@ export async function scanLocal(input: ScanLocalInput): Promise<ScanResult> {
     sbom = JSON.parse(stdout);
     syftExitCode = 0;
   } catch (err) {
-    log.error("Syft failed", { path: input.path, error: err instanceof Error ? err.message : String(err) });
-    throw new Error(`Syft scan failed: ${err instanceof Error ? err.message : String(err)}`);
+    const stderr = (err as { stderr?: string }).stderr?.trim();
+    const msg = err instanceof Error ? err.message : String(err);
+    log.error("Syft failed", { path: input.path, error: msg, stderr });
+    throw new Error(stderr ? `Syft scan failed: ${stderr}` : `Syft scan failed: ${msg}`);
   }
 
   // Run Grype for vulnerability analysis
@@ -42,8 +44,10 @@ export async function scanLocal(input: ScanLocalInput): Promise<ScanResult> {
     grype = JSON.parse(stdout);
     grypeExitCode = 0;
   } catch (err) {
-    log.error("Grype failed", { path: input.path, error: err instanceof Error ? err.message : String(err) });
-    throw new Error(`Grype scan failed: ${err instanceof Error ? err.message : String(err)}`);
+    const stderr = (err as { stderr?: string }).stderr?.trim();
+    const msg = err instanceof Error ? err.message : String(err);
+    log.error("Grype failed", { path: input.path, error: msg, stderr });
+    throw new Error(stderr ? `Grype scan failed: ${stderr}` : `Grype scan failed: ${msg}`);
   }
 
   const meta: ScanMeta = {

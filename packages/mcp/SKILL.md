@@ -45,3 +45,8 @@ Scan the current working directory for security vulnerabilities using the OtterS
 
 - If no vulnerabilities found: display a clean pass message congratulating the user.
 - If the scan tool returns an error about Syft/Grype: run the prerequisite check above.
+- If `npx` is not available (no Node.js on the system), scan directly with Syft and Grype:
+  ```bash
+  syft dir:. -o json > /tmp/sbom.json
+  grype dir:. -o table
+  ```
