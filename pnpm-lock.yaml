@@ -17,9 +17,6 @@ importers:
 
   packages/cli:
     dependencies:
-      '@ottersight/scanner':
-        specifier: workspace:*
-        version: link:../scanner
       chalk:
         specifier: ^5.6.2
         version: 5.6.2
@@ -36,6 +33,9 @@ importers:
         specifier: ^6.0.1
         version: 6.0.1
     devDependencies:
+      '@ottersight/scanner':
+        specifier: workspace:*
+        version: link:../scanner
       '@types/node':
         specifier: ^25.5.0
         version: 25.5.0
@@ -54,13 +54,13 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@4.3.6)
-      '@ottersight/scanner':
-        specifier: workspace:*
-        version: link:../scanner
       zod:
         specifier: ^4.3.6
         version: 4.3.6
     devDependencies:
+      '@ottersight/scanner':
+        specifier: workspace:*
+        version: link:../scanner
       '@types/node':
         specifier: ^25.5.0
         version: 25.5.0
