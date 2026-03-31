@@ -6,5 +6,6 @@ export default defineConfig({
   outDir: 'dist',
   dts: true,
   clean: true,
+  noExternal: ['@ottersight/scanner'],
   banner: { js: '#!/usr/bin/env node' },
 });
