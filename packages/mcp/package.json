@@ -22,7 +22,7 @@
       }
     }
   },
-  "files": ["dist"],
+  "files": ["dist", "SKILL.md"],
   "publishConfig": { "access": "public" },
   "engines": { "node": ">=20" },
   "mcpName": "io.github.ottersight/ottersight",
