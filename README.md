@@ -15,7 +15,7 @@ Scan your dependencies for known vulnerabilities — locally, in CI, or from you
 
 ```bash
 npx @ottersight/cli scan .                                  # Terminal / CI
-docker run --rm -v $(pwd):/repo ottersight/cli scan /repo   # Docker (no deps needed)
+docker run --rm -v $(pwd):/repo ghcr.io/ottersight/cli scan /repo   # Docker (no deps needed)
 ```
 
 For Claude Code, install the skill and type `/ottersight-scan`:
@@ -103,7 +103,7 @@ npm install -g @ottersight/cli
 ottersight scan .
 
 # Docker (Syft + Grype bundled, nothing else to install)
-docker run --rm -v $(pwd):/repo ottersight/cli scan /repo
+docker run --rm -v $(pwd):/repo ghcr.io/ottersight/cli scan /repo
 ```
 
 Output: colored terminal table grouped by severity, summary line, optional `--output report.md` for Markdown.
