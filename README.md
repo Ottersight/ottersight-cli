@@ -49,7 +49,7 @@ graph TB
         MCP["@ottersight/mcp<br/><i>AI Assistants</i>"]
     end
 
-    subgraph Core["Open Source (bundled, not on npm)"]
+    subgraph Core["Open Source (on npm)"]
         Scanner["@ottersight/scanner<br/><i>Scan engine</i>"]
     end
 
@@ -86,7 +86,7 @@ graph TB
 
 **How it works:** Both the CLI and the MCP server use the same scanner engine. The scanner orchestrates [Syft](https://github.com/anchore/syft) (SBOM) and [Grype](https://github.com/anchore/grype) (CVE matching), then enriches results with [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) data (actively exploited vulnerabilities), [EUVD](https://euvd.enisa.europa.eu/) mappings (EU NIS2/CRA compliance), and latest version lookups from package registries.
 
-The scanner (`packages/scanner/`) is the core engine — open source and accepting contributions, but bundled into the CLI and MCP packages at build time rather than published to npm separately. If you want to improve the scanning pipeline, that's where to look.
+The scanner (`packages/scanner/`) is the core engine — open source, published on npm as `@ottersight/scanner`, and also bundled into the CLI and MCP packages at build time. If you want to improve the scanning pipeline, that's where to look.
 
 ## Two Ways to Scan
 
@@ -233,7 +233,7 @@ pnpm typecheck  # Type-check
 ```
 packages/
 ├── scanner/   Scan engine — Syft + Grype orchestration, KEV/EUVD enrichment, registry lookups
-│              Open source, bundled into CLI and MCP at build time (not published to npm)
+│              Published as @ottersight/scanner, also bundled into CLI and MCP at build time
 ├── cli/       CLI tool — imports scanner, renders terminal/markdown output
 └── mcp/       MCP server — imports scanner, exposes tools to AI assistants
 ```
