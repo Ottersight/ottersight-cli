@@ -1,6 +1,6 @@
 {
   "name": "@ottersight/scanner",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "type": "module",
   "description": "OtterSight scanner core - SBOM + CVE + EUVD + KEV enrichment",
   "publishConfig": { "access": "public" },
