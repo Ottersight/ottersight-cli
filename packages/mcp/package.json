@@ -1,6 +1,6 @@
 {
   "name": "@ottersight/mcp",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "type": "module",
   "description": "OtterSight MCP server - security vulnerability scanning for AI assistants",
   "license": "MIT",
