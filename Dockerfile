@@ -1,4 +1,4 @@
-# Usage: docker run --rm -v $(pwd):/repo ottersight/cli scan /repo
+# Usage: docker run --rm -v $(pwd):/repo ghcr.io/ottersight/cli scan /repo
 #
 # Multi-stage build:
 # 1. Copy Syft + Grype binaries from official Anchore images (no curl|sh supply chain risk)
@@ -16,20 +16,16 @@ FROM anchore/grype:latest AS grype
 FROM cgr.dev/chainguard/node:latest-dev AS builder
 WORKDIR /app
 
-# Copy scanner package sources (CLI depends on @ottersight/scanner)
-COPY packages/scanner/package.json packages/scanner/
-COPY packages/scanner/tsup.config.ts packages/scanner/
-COPY packages/scanner/tsconfig.json packages/scanner/
-COPY packages/scanner/src/ packages/scanner/src/
-
-# Copy CLI package sources
-COPY packages/cli/package.json packages/cli/
-COPY packages/cli/tsup.config.ts packages/cli/
-COPY packages/cli/tsconfig.json packages/cli/
-COPY packages/cli/src/ packages/cli/src/
-
-# Copy root workspace config for pnpm workspaces
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+# Copy all source files with correct ownership (Chainguard runs as node user)
+COPY --chown=node:node packages/scanner/package.json packages/scanner/
+COPY --chown=node:node packages/scanner/tsup.config.ts packages/scanner/
+COPY --chown=node:node packages/scanner/tsconfig.json packages/scanner/
+COPY --chown=node:node packages/scanner/src/ packages/scanner/src/
+COPY --chown=node:node packages/cli/package.json packages/cli/
+COPY --chown=node:node packages/cli/tsup.config.ts packages/cli/
+COPY --chown=node:node packages/cli/tsconfig.json packages/cli/
+COPY --chown=node:node packages/cli/src/ packages/cli/src/
+COPY --chown=node:node package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 
 # Install deps and build (pnpm is pre-installed in chainguard node:latest-dev)
 # Scanner must be built first so dist/index.d.ts exists for CLI typecheck
@@ -57,7 +53,7 @@ COPY --from=syft /syft /usr/local/bin/syft
 COPY --from=grype /grype /usr/local/bin/grype
 
 # Volume mount point for user's repo — convention: mount local directory at /repo
-# docker run --rm -v $(pwd):/repo ottersight/cli scan /repo
+# docker run --rm -v $(pwd):/repo ghcr.io/ottersight/cli scan /repo
 VOLUME ["/repo"]
 
 # Entrypoint: node runs the CLI script directly (no shell needed)
