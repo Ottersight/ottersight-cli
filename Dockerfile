@@ -31,10 +31,9 @@ COPY packages/cli/src/ packages/cli/src/
 # Copy root workspace config for pnpm workspaces
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 
-# Enable pnpm via corepack (built into Node 20+, no global install needed)
+# Install deps and build (pnpm is pre-installed in chainguard node:latest-dev)
 # Scanner must be built first so dist/index.d.ts exists for CLI typecheck
-RUN corepack enable && corepack prepare pnpm@latest --activate && \
-    pnpm install --frozen-lockfile && \
+RUN pnpm install --frozen-lockfile && \
     pnpm --filter @ottersight/scanner build && \
     pnpm --filter @ottersight/cli build
 
