@@ -3,7 +3,7 @@
   "version": "0.1.5",
   "type": "module",
   "description": "OtterSight scanner core - SBOM + CVE + EUVD + KEV enrichment",
-  "private": true,
+  "publishConfig": { "access": "public" },
   "license": "MIT",
   "repository": {
     "type": "git",
