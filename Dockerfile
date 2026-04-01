@@ -2,8 +2,9 @@
 #
 # Multi-stage build:
 # 1. Copy Syft + Grype binaries from official Anchore images (no curl|sh supply chain risk)
-# 2. Build CLI with pnpm ci + tsup in Chainguard node:latest-dev (has shell + npm/pnpm)
-# 3. Minimal Chainguard Node runtime (near-zero CVEs, runs as nonroot user)
+# 2. Build CLI + scanner with pnpm in Chainguard node:latest-dev
+# 3. Install production deps with npm (no symlinks) for clean runtime copy
+# 4. Minimal Chainguard Node runtime (near-zero CVEs, runs as nonroot user)
 
 # Stage 1: Syft binary — official Anchore image, binary at /syft
 FROM anchore/syft:latest AS syft
@@ -12,7 +13,6 @@ FROM anchore/syft:latest AS syft
 FROM anchore/grype:latest AS grype
 
 # Stage 3: Build stage — cgr.dev/chainguard/node:latest-dev has npm, pnpm, and shell
-# We need the dev variant here because the distroless runtime has no package manager
 FROM cgr.dev/chainguard/node:latest-dev AS builder
 WORKDIR /app
 
@@ -27,36 +27,36 @@ COPY --chown=node:node packages/cli/tsconfig.json packages/cli/
 COPY --chown=node:node packages/cli/src/ packages/cli/src/
 COPY --chown=node:node package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 
-# Install deps and build (pnpm is pre-installed in chainguard node:latest-dev)
-# Scanner must be built first so dist/index.d.ts exists for CLI typecheck
+# Install deps and build with pnpm
 RUN pnpm install --frozen-lockfile && \
     pnpm --filter @ottersight/scanner build && \
     pnpm --filter @ottersight/cli build
 
+# Create a clean deploy directory with npm (no pnpm symlinks)
+# Remove workspace:* dep — scanner is copied manually below
+RUN mkdir -p /app/deploy && \
+    cp -r /app/packages/cli/dist /app/deploy/dist && \
+    cat /app/packages/cli/package.json | sed '/"@ottersight\/scanner"/d' > /app/deploy/package.json && \
+    cd /app/deploy && npm install --omit=dev --ignore-scripts && \
+    mkdir -p /app/deploy/node_modules/@ottersight/scanner && \
+    cp -r /app/packages/scanner/dist /app/deploy/node_modules/@ottersight/scanner/dist && \
+    cp /app/packages/scanner/package.json /app/deploy/node_modules/@ottersight/scanner/package.json
+
 # Stage 4: Minimal runtime — Chainguard distroless Node (no shell, nonroot user)
-# cgr.dev/chainguard/node entrypoint is /usr/bin/node — we pass args directly via ENTRYPOINT
 FROM cgr.dev/chainguard/node:latest
 WORKDIR /app
 
-# Copy built CLI dist and its node_modules from builder
-COPY --from=builder /app/packages/cli/dist ./dist
-COPY --from=builder /app/packages/cli/node_modules ./node_modules
-
-# Copy scanner dist and package.json into the CLI's node_modules directory
-# (workspace symlink won't exist in runtime stage; copy manually)
-COPY --from=builder /app/packages/scanner/dist ./node_modules/@ottersight/scanner/dist
-COPY --from=builder /app/packages/scanner/package.json ./node_modules/@ottersight/scanner/package.json
+# Copy deployed CLI (dist + real node_modules, no symlinks)
+COPY --from=builder /app/deploy/dist ./dist
+COPY --from=builder /app/deploy/node_modules ./node_modules
 
 # Copy Syft + Grype binaries from official Anchore images
-# Using binary copy pattern (not install script) eliminates supply chain risk
 COPY --from=syft /syft /usr/local/bin/syft
 COPY --from=grype /grype /usr/local/bin/grype
 
-# Volume mount point for user's repo — convention: mount local directory at /repo
-# docker run --rm -v $(pwd):/repo ghcr.io/ottersight/cli scan /repo
+# Volume mount point for user's repo
 VOLUME ["/repo"]
 
 # Entrypoint: node runs the CLI script directly (no shell needed)
-# CMD provides default scan target; override by passing different args to docker run
 ENTRYPOINT ["node", "/app/dist/index.js"]
 CMD ["scan", "/repo"]
