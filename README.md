@@ -1,4 +1,4 @@
-<img align="right" src="https://raw.githubusercontent.com/Ottersight/depwatch/main/packages/web/public/ollie/ollie-clean.svg" width="120" alt="Ollie the Otter">
+<img align="right" src="docs/ollie-clean.svg" width="120" alt="Ollie the Otter">
 
 # OtterSight — OSS Scanner
 
