@@ -7,6 +7,22 @@
 
 Local dependency security scanning for developers. Combines Syft (SBOM) + Grype (CVE) with CISA KEV enrichment and EU Vulnerability Database (EUVD) mapping.
 
+## TL;DR
+
+Scan your dependencies for known vulnerabilities — locally, in CI, or from your AI assistant.
+
+```bash
+npx @ottersight/cli scan .                                  # Terminal / CI
+docker run --rm -v $(pwd):/repo ottersight/cli scan /repo   # Docker (no deps needed)
+```
+
+For Claude Code, install the skill and type `/ottersight-scan`:
+```bash
+mkdir -p ~/.claude/skills/ottersight-scan && curl -sSL \
+  https://raw.githubusercontent.com/Ottersight/ottersight-cli/main/packages/mcp/SKILL.md \
+  -o ~/.claude/skills/ottersight-scan/SKILL.md
+```
+
 ```
 $ ottersight scan .
 
