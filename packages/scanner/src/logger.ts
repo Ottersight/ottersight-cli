@@ -30,11 +30,7 @@ function write(level: Level, msg: string, context?: Record<string, unknown>) {
   };
 
   const line = JSON.stringify(entry);
-  if (level === "error") {
-    process.stderr.write(line + "\n");
-  } else {
-    process.stdout.write(line + "\n");
-  }
+  process.stderr.write(line + "\n");
 }
 
 export const log = {
