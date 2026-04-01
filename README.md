@@ -1,3 +1,5 @@
+<img align="right" src="https://raw.githubusercontent.com/Ottersight/depwatch/main/packages/web/public/ollie/ollie-clean.svg" width="120" alt="Ollie the Otter">
+
 # OtterSight — OSS Scanner
 
 [![CI](https://github.com/Ottersight/ottersight-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/Ottersight/ottersight-cli/actions/workflows/ci.yml)
