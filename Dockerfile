@@ -54,9 +54,9 @@ COPY --from=builder /app/deploy/node_modules ./node_modules
 COPY --from=syft /syft /usr/local/bin/syft
 COPY --from=grype /grype /usr/local/bin/grype
 
-# Volume mount point for user's repo
-VOLUME ["/repo"]
+# Set working directory to /repo so "scan ." works with volume mounts
+WORKDIR /repo
 
 # Entrypoint: node runs the CLI script directly (no shell needed)
 ENTRYPOINT ["node", "/app/dist/index.js"]
-CMD ["scan", "/repo"]
+CMD ["scan", "."]
