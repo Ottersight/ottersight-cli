@@ -23,6 +23,7 @@ jobs:
       - run: pnpm test
       - run: pnpm --filter @ottersight/scanner publish --access public --provenance --no-git-checks
       - run: pnpm --filter @ottersight/cli publish --access public --provenance --no-git-checks
+      - run: pnpm --filter @ottersight/mcp publish --access public --provenance --no-git-checks
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
