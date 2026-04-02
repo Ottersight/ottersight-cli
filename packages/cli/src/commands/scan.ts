@@ -19,6 +19,9 @@ interface ScanOptions {
 }
 
 export async function scanCommand(scanPath: string, options: ScanOptions): Promise<void> {
+  // Suppress scanner info/warn logs in CLI mode — only show errors
+  process.env.LOG_LEVEL = process.env.LOG_LEVEL ?? "error";
+
   const resolvedPath = resolve(scanPath);
 
   // Verify path exists and is a directory
