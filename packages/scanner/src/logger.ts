@@ -17,10 +17,9 @@ const LEVEL_VALUE: Record<Level, number> = {
   error: 40,
 };
 
-const MIN_LEVEL = LEVEL_VALUE[(process.env.LOG_LEVEL as Level) ?? "info"] ?? 20;
-
 function write(level: Level, msg: string, context?: Record<string, unknown>) {
-  if (LEVEL_VALUE[level] < MIN_LEVEL) return;
+  const minLevel = LEVEL_VALUE[(process.env.LOG_LEVEL as Level) ?? "info"] ?? 20;
+  if (LEVEL_VALUE[level] < minLevel) return;
 
   const entry = {
     level,
