@@ -106,7 +106,7 @@ ottersight scan .
 docker run --rm -v $(pwd):/repo ghcr.io/ottersight/cli scan .
 ```
 
-Output: colored terminal table grouped by severity, summary line, optional `--output report.md` for Markdown.
+Output: colored terminal table grouped by severity, summary line, optional `--output report.md` for Markdown, or `--format sarif` for GitHub Code Scanning.
 
 ### `@ottersight/mcp` — for AI assistants
 
@@ -127,7 +127,7 @@ Then type `/ottersight-scan` in Claude Code. The skill self-bootstraps — it re
 | I want to... | Use |
 |---|---|
 | Scan my project from the terminal | `@ottersight/cli` |
-| Add scanning to a CI pipeline | `@ottersight/cli` (with `--quiet --output report.md`) |
+| Add scanning to a CI pipeline | `@ottersight/cli` (with `--quiet --output report.md` or `--format sarif`) |
 | Scan without installing Syft/Grype | Docker image |
 | Scan from Claude Code / Claude Desktop | `@ottersight/mcp` |
 
@@ -210,6 +210,12 @@ ignore:
 ```
 
 This reduces noise and lets you focus on vulnerabilities that actually matter.
+
+To suppress individual vulnerabilities (accepted risk, false positive), use `--ignore`:
+
+```bash
+ottersight scan . --ignore CVE-2021-23337 --ignore GHSA-29mw-wpgm-hmr9
+```
 
 ## OtterSight Cloud
 

@@ -28,6 +28,7 @@ export interface GrypeMatch {
     name: string;
     version: string;
     purl?: string;
+    locations?: Array<{ path: string }>;
   };
   relatedVulnerabilities?: Array<{
     id: string;
@@ -84,4 +85,6 @@ export interface EnrichedVuln {
   euvdId: string | null;
   inKev: boolean;
   fixVersion: string | null;
+  /** Manifest/lockfile paths (relative to scan root) where the package was found */
+  locations?: string[];
 }

@@ -38,6 +38,8 @@ ottersight scan .                        # Scan current directory
 ottersight scan /path/to/project         # Scan a specific path
 ottersight scan . --output report.md     # Write Markdown report to file
 ottersight scan . --quiet                # Suppress spinners (CI-friendly)
+ottersight scan . --format sarif > results.sarif   # SARIF for GitHub Code Scanning
+ottersight scan . --ignore CVE-2021-23337          # Suppress a CVE/GHSA (repeatable)
 ottersight --help
 ottersight scan --help
 ```
@@ -50,6 +52,10 @@ Results grouped by severity (CRITICAL → HIGH → MEDIUM → LOW):
 |---------|---------|-----|----------|---------|-----|---------------|
 
 A summary line is always printed. `--output report.md` writes Markdown without ANSI codes.
+
+`--format sarif` prints a SARIF 2.1.0 document to stdout (status messages go to stderr), ready for `github/codeql-action/upload-sarif`.
+
+`--ignore <id>` accepts CVE or GHSA IDs. A CVE also suppresses GHSA advisories that reference it. Ignored findings are excluded from all outputs and counts.
 
 ## Exit Codes
 
