@@ -9,6 +9,7 @@ function makeMatch(overrides: {
   severity?: string;
   fix?: string;
   related?: Array<{ id: string; severity: string }>;
+  locations?: string[];
 }): GrypeMatch {
   return {
     vulnerability: {
@@ -16,7 +17,11 @@ function makeMatch(overrides: {
       severity: overrides.severity ?? "medium",
       fix: overrides.fix ? { versions: [overrides.fix], state: "fixed" } : undefined,
     },
-    artifact: { name: overrides.name, version: overrides.version },
+    artifact: {
+      name: overrides.name,
+      version: overrides.version,
+      locations: overrides.locations?.map((path) => ({ path })),
+    },
     relatedVulnerabilities: overrides.related,
   };
 }
@@ -51,6 +56,36 @@ describe("enrichVulnerabilities", () => {
       ];
       const result = enrichVulnerabilities(matches, new Set(), new Map());
       expect(result[0].fixVersion).toBe("4.1.0");
+    });
+  });
+
+  describe("locations", () => {
+    it("strips leading slashes from Grype paths", () => {
+      const result = enrichVulnerabilities(
+        [makeMatch({ name: "lodash", version: "4.17.20", id: "CVE-2021-23337", locations: ["/package-lock.json"] })],
+        new Set(),
+        new Map(),
+      );
+      expect(result[0].locations).toEqual(["package-lock.json"]);
+    });
+
+    it("merges locations of deduplicated matches", () => {
+      const matches: GrypeMatch[] = [
+        makeMatch({ name: "lodash", version: "4.17.20", id: "CVE-2021-23337", locations: ["/package-lock.json"] }),
+        makeMatch({ name: "lodash", version: "4.17.20", id: "CVE-2021-23337", locations: ["/apps/web/package-lock.json"] }),
+        makeMatch({ name: "lodash", version: "4.17.20", id: "CVE-2021-23337", locations: ["/package-lock.json"] }),
+      ];
+      const result = enrichVulnerabilities(matches, new Set(), new Map());
+      expect(result[0].locations).toEqual(["package-lock.json", "apps/web/package-lock.json"]);
+    });
+
+    it("defaults to an empty list when Grype has no locations", () => {
+      const result = enrichVulnerabilities(
+        [makeMatch({ name: "lodash", version: "4.17.20", id: "CVE-2021-23337" })],
+        new Set(),
+        new Map(),
+      );
+      expect(result[0].locations).toEqual([]);
     });
   });
 
