@@ -15,16 +15,23 @@ export function enrichVulnerabilities(
 ): EnrichedVuln[] {
   // Dedup: same package + version + vuln ID can appear multiple times when
   // Grype scans several manifest/lockfile occurrences of the same package.
-  const seen = new Set<string>();
+  // Locations of the duplicates are merged into the first occurrence.
+  const seen = new Map<string, EnrichedVuln>();
   const vulns: EnrichedVuln[] = [];
 
   for (const m of matches) {
     const key = `${m.artifact.name}@${m.artifact.version}:${m.vulnerability.id}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const paths = (m.artifact.locations ?? []).map((l) => l.path.replace(/^\/+/, ""));
+    const existing = seen.get(key);
+    if (existing) {
+      for (const p of paths) {
+        if (!existing.locations!.includes(p)) existing.locations!.push(p);
+      }
+      continue;
+    }
 
     const cveId = resolveCveId(m);
-    vulns.push({
+    const vuln: EnrichedVuln = {
       packageName: m.artifact.name,
       packageVersion: m.artifact.version,
       cveId: m.vulnerability.id,
@@ -32,7 +39,10 @@ export function enrichVulnerabilities(
       euvdId: euvdMap.get(cveId) ?? null,
       inKev: kevSet.has(cveId),
       fixVersion: m.vulnerability.fix?.versions?.[0] ?? null,
-    });
+      locations: [...new Set(paths)],
+    };
+    seen.set(key, vuln);
+    vulns.push(vuln);
   }
 
   return vulns;
