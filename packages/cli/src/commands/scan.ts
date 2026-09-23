@@ -15,6 +15,8 @@ import { checkDependencies } from "../check-deps.js";
 import { renderTerminalTable, renderSummaryLine, renderAttribution } from "../render/terminal.js";
 import { renderMarkdown } from "../render/markdown.js";
 import { renderSarif } from "../render/sarif.js";
+import { renderJson } from "../render/json.js";
+import { failingFindings, type FailOnLevel } from "../fail-on.js";
 import { filterIgnored } from "../ignore.js";
 
 const EXPLOITED_SOURCE_NOTICE = {
@@ -27,7 +29,7 @@ const EU_SOURCES_NO_MIRROR_NOTICE =
   "Note: --eu-sources without --grype-db-url: the Grype vulnerability DB is still downloaded from Anchore (grype.anchore.io, US).";
 
 interface ScanOptions {
-  format?: "table" | "sarif";
+  format?: "table" | "sarif" | "json";
   output?: string;
   ignore?: string[];
   quiet?: boolean;
@@ -37,6 +39,8 @@ interface ScanOptions {
   euSources?: boolean;
   /** Grype DB listing base URL (EU mirror) */
   grypeDbUrl?: string;
+  /** Exit 1 when a finding reaches this severity (or is known exploited, "kev") */
+  failOn?: FailOnLevel;
   version?: string;
 }
 
@@ -101,13 +105,23 @@ export async function scanCommand(scanPath: string, options: ScanOptions): Promi
       .filter((m) => !kept.has(m))
       .map((m) => `${m.artifact.name}@${m.artifact.version}:${m.vulnerability.id}`),
   ).size;
-  const sarif = options.format === "sarif";
-  const status = sarif ? console.error : console.log;
+  const machine = options.format === "sarif" || options.format === "json";
+  const status = machine ? console.error : console.log;
 
-  // Step 3: stdout output. In SARIF mode stdout carries only the JSON document,
+  // Step 3: stdout output. In SARIF/JSON mode stdout carries only the document,
   // so human-readable status goes to stderr.
-  if (sarif) {
+  if (options.format === "sarif") {
     console.log(renderSarif(vulns, options.version ?? "0.0.0", { exploitedSource }));
+    status(chalk.bold(renderSummaryLine(vulns)));
+  } else if (options.format === "json") {
+    console.log(renderJson(vulns, {
+      version: options.version ?? "0.0.0",
+      scannedPath: resolvedPath,
+      commitSha: scanResult.commitSha,
+      exploitedSource,
+      euSources,
+      ignored: ignoredCount,
+    }));
     status(chalk.bold(renderSummaryLine(vulns)));
   } else {
     console.log(""); // blank line before table
@@ -138,7 +152,12 @@ export async function scanCommand(scanPath: string, options: ScanOptions): Promi
     status(chalk.green(`\nReport written to ${options.output}`));
   }
 
-  // Exit code 0 = scan complete (even with vulnerabilities found). Per D-03.
+  // Exit code 0 = scan complete, even with findings (D-03), unless --fail-on is met.
   // No process.exit(): it cuts off stdout writes still pending on a pipe (SARIF stopped at 64 KiB).
-  process.exitCode = 0;
+  const failing = options.failOn ? failingFindings(vulns, options.failOn) : [];
+  if (failing.length > 0) {
+    const what = options.failOn === "kev" ? "known exploited" : `${options.failOn} or higher`;
+    status(chalk.red(`Failing: ${failing.length} finding(s) ${what} (--fail-on ${options.failOn})`));
+  }
+  process.exitCode = failing.length > 0 ? 1 : 0;
 }
