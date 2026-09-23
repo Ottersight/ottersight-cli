@@ -45,7 +45,11 @@ function message(v: EnrichedVuln): string {
   return parts.join(" ");
 }
 
-export function renderSarif(vulns: EnrichedVuln[], toolVersion: string): string {
+export function renderSarif(
+  vulns: EnrichedVuln[],
+  toolVersion: string,
+  meta: { exploitedSource?: string } = {},
+): string {
   // One rule per vulnerability ID; severity of the first occurrence wins.
   const rules = new Map<string, object>();
   for (const v of vulns) {
@@ -110,7 +114,10 @@ export function renderSarif(vulns: EnrichedVuln[], toolVersion: string): string 
           },
         },
         results,
-        properties: { dataAttribution: DATA_ATTRIBUTION },
+        properties: {
+          dataAttribution: DATA_ATTRIBUTION,
+          ...(meta.exploitedSource && { exploitedSource: meta.exploitedSource }),
+        },
       },
     ],
   };

@@ -5,6 +5,7 @@ import chalk from "chalk";
 import {
   scanLocal,
   loadExploited,
+  getExploitedSource,
   loadEuvdMapping,
   enrichVulnerabilities,
   type GrypeMatch,
@@ -14,6 +15,12 @@ import { renderTerminalTable, renderSummaryLine, renderAttribution } from "../re
 import { renderMarkdown } from "../render/markdown.js";
 import { renderSarif } from "../render/sarif.js";
 import { filterIgnored } from "../ignore.js";
+
+const EXPLOITED_SOURCE_NOTICE = {
+  "euvd-stale": "Note: ENISA EUVD was unreachable; known-exploited data is from an earlier EUVD download.",
+  "cisa-fallback": "Note: ENISA EUVD was unreachable; showing CISA KEV only (EU KEV is missing).",
+  none: "Note: known-exploited data (EUVD, CISA KEV) could not be loaded; exploitation flags are missing.",
+} as const;
 
 interface ScanOptions {
   format?: "table" | "sarif";
@@ -70,6 +77,7 @@ export async function scanCommand(scanPath: string, options: ScanOptions): Promi
   ]);
 
   enrichSpinner?.succeed("Enrichment complete");
+  const exploitedSource = getExploitedSource();
 
   // Build enriched vulns from GrypeMatch[] + KEV/EUVD data
   const vulns = enrichVulnerabilities(matches, exploited, euvdMap);
@@ -87,7 +95,7 @@ export async function scanCommand(scanPath: string, options: ScanOptions): Promi
   // Step 3: stdout output. In SARIF mode stdout carries only the JSON document,
   // so human-readable status goes to stderr.
   if (sarif) {
-    console.log(renderSarif(vulns, options.version ?? "0.0.0"));
+    console.log(renderSarif(vulns, options.version ?? "0.0.0", { exploitedSource }));
     status(chalk.bold(renderSummaryLine(vulns)));
   } else {
     console.log(""); // blank line before table
@@ -100,6 +108,9 @@ export async function scanCommand(scanPath: string, options: ScanOptions): Promi
     if (scanResult.commitSha) {
       console.log(chalk.gray(`Commit: ${scanResult.commitSha}`));
     }
+  }
+  if (exploitedSource !== "euvd") {
+    status(chalk.yellow(EXPLOITED_SOURCE_NOTICE[exploitedSource]));
   }
   if (ignoredCount > 0) {
     status(chalk.gray(`Ignored: ${ignoredCount} finding(s) via --ignore`));

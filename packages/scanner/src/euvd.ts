@@ -13,7 +13,9 @@ export async function loadEuvdMapping(): Promise<Map<string, string>> {
   }
 
   try {
-    const res = await fetch(EUVD_MAPPING_URL);
+    const res = await fetch(EUVD_MAPPING_URL, {
+      headers: { "User-Agent": USER_AGENT, Accept: "text/csv" },
+    });
     if (!res.ok) throw new Error(`EUVD fetch failed: ${res.status}`);
     const csv = await res.text();
 
@@ -72,8 +74,23 @@ interface EuvdKevEntry {
   sources?: string[];
 }
 
+const MIN_KEV_DUMP_ENTRIES = 1000;
+
+/**
+ * Where the last loadExploited() result came from:
+ * "euvd" (fresh EUVD dump, EU + CISA KEV), "euvd-stale" (EUVD failed, older EUVD data kept),
+ * "cisa-fallback" (EUVD failed, CISA KEV only — no EU KEV), "none" (nothing loaded).
+ */
+export type ExploitedSource = "euvd" | "euvd-stale" | "cisa-fallback" | "none";
+
 let exploitedMap: Map<string, ExploitedInfo> | null = null;
 let exploitedLoadedAt = 0;
+let exploitedSource: ExploitedSource = "none";
+
+/** Source of the most recent loadExploited() result; lets callers tell users when EU KEV is missing. */
+export function getExploitedSource(): ExploitedSource {
+  return exploitedSource;
+}
 
 function isKevSource(s: string): s is KevSource {
   return s === "cisa_kev" || s === "eukev_kev";
@@ -84,8 +101,16 @@ async function fetchEuvdKevDump(): Promise<Map<string, ExploitedInfo>> {
     headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
   });
   if (!res.ok) throw new Error(`EUVD KEV dump fetch failed: ${res.status}`);
+  const contentType = res.headers?.get?.("content-type") ?? "";
+  if (contentType && !contentType.includes("json")) {
+    throw new Error(`EUVD KEV dump: unexpected content-type ${contentType}`);
+  }
   const entries = (await res.json()) as EuvdKevEntry[];
   if (!Array.isArray(entries)) throw new Error("EUVD KEV dump: unexpected response shape");
+  // The dump has ~1,700 entries; a much smaller one is truncated or broken.
+  if (entries.length < MIN_KEV_DUMP_ENTRIES) {
+    throw new Error(`EUVD KEV dump: only ${entries.length} entries`);
+  }
 
   const map = new Map<string, ExploitedInfo>();
   for (const e of entries) {
@@ -113,6 +138,7 @@ export async function loadExploited(): Promise<Map<string, ExploitedInfo>> {
   try {
     exploitedMap = await fetchEuvdKevDump();
     exploitedLoadedAt = Date.now();
+    exploitedSource = "euvd";
     log.info("EUVD KEV dump loaded", { entries: exploitedMap.size });
     return exploitedMap;
   } catch (err) {
@@ -128,6 +154,8 @@ export async function loadExploited(): Promise<Map<string, ExploitedInfo>> {
     fallback.set(cveId, { sources: ["cisa_kev"], dateAdded: null, euvdId: null });
   }
   // A stale EUVD map (from an earlier success) still beats CISA-only data.
+  exploitedSource = exploitedMap ? "euvd-stale" : fallback.size > 0 ? "cisa-fallback" : "none";
+  log.warn("exploited_source_degraded", { source: exploitedSource });
   return exploitedMap ?? fallback;
 }
 
@@ -207,7 +235,11 @@ export async function lookupEuvdRecord(euvdId: string): Promise<EuvdRecord | nul
       baseScore: typeof r.baseScore === "number" && r.baseScore > 0 ? r.baseScore : null,
       baseScoreVersion: r.baseScoreVersion || null,
       baseScoreVector: r.baseScoreVector || null,
-      epss: typeof r.epss === "number" ? Math.round(r.epss * 1000) / 100000 : null,
+      // Unscored records carry baseScore 0, epss 0 and no version: EPSS is unknown, not 0 %.
+      epss:
+        typeof r.epss === "number" && !(r.epss === 0 && !(r.baseScore && r.baseScore > 0) && !r.baseScoreVersion)
+          ? Math.round(r.epss * 1000) / 100000
+          : null,
       aliases: splitEuvdList(r.aliases),
       references: splitEuvdList(r.references),
       assigner: r.assigner?.trim() || null,

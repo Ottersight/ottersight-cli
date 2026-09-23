@@ -81,6 +81,16 @@ const KEV_DUMP = [
 
 const CISA_KEV = { vulnerabilities: [{ cveID: "CVE-2021-22555" }] };
 
+// The real dump has ~1,700 entries; loadExploited() rejects dumps under 1,000 as truncated.
+const FILLER = Array.from({ length: 1000 }, (_, i) => ({
+  cveId: `CVE-2000-${10000 + i}`,
+  euvdId: `EUVD-2000-${i}`,
+  dateAdded: "2022-01-01",
+  sources: ["cisa_kev"],
+}));
+const FULL_DUMP = [...KEV_DUMP, ...FILLER];
+const jsonHeaders = { get: (h: string) => (h.toLowerCase() === "content-type" ? "application/json" : null) };
+
 describe("loadExploited", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -88,14 +98,14 @@ describe("loadExploited", () => {
   });
 
   it("parses the EUVD KEV dump incl. EU-KEV-only entries", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => KEV_DUMP });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => FULL_DUMP });
     vi.stubGlobal("fetch", fetchMock);
 
     const { loadExploited } = await import("../euvd.js");
     const result = await loadExploited();
 
     expect(fetchMock.mock.calls[0][0]).toBe("https://euvdservices.enisa.europa.eu/api/kev/dump");
-    expect(result.size).toBe(3);
+    expect(result.size).toBe(3 + FILLER.length);
     expect(result.get("CVE-2015-7501")).toEqual({
       sources: ["eukev_kev"],
       dateAdded: "2025-07-14",
@@ -155,7 +165,7 @@ describe("loadExploited", () => {
   });
 
   it("caches the EUVD dump for subsequent calls", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => KEV_DUMP });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => FULL_DUMP });
     vi.stubGlobal("fetch", fetchMock);
 
     const { loadExploited } = await import("../euvd.js");
@@ -250,6 +260,123 @@ describe("lookupEuvdRecord", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, text: async () => JSON.stringify({ ...RAW, baseScore: 0 }) }));
     const { lookupEuvdRecord } = await import("../euvd.js");
     expect((await lookupEuvdRecord("EUVD-2026-75009"))?.baseScore).toBeNull();
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("loadExploited — degraded sources and response guards", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  const cisaOk = { ok: true, json: async () => CISA_KEV };
+  const route = (euvd: unknown) =>
+    vi.fn(async (url: string) => (url.includes("euvdservices") ? euvd : cisaOk));
+
+  it("reports source 'euvd' after a successful EUVD load", async () => {
+    vi.stubGlobal("fetch", route({ ok: true, headers: jsonHeaders, json: async () => FULL_DUMP }));
+    const { loadExploited, getExploitedSource } = await import("../euvd.js");
+    await loadExploited();
+    expect(getExploitedSource()).toBe("euvd");
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    ["403 with empty body (WAF/UA block)", { ok: false, status: 403, json: async () => { throw new SyntaxError("empty"); } }],
+    ["HTML error page with status 200", { ok: true, headers: { get: () => "text/html" }, json: async () => { throw new SyntaxError("<html>"); } }],
+    ["truncated dump", { ok: true, headers: jsonHeaders, json: async () => KEV_DUMP }],
+    ["empty array", { ok: true, headers: jsonHeaders, json: async () => [] }],
+    ["429 rate limited", { ok: false, status: 429, json: async () => ({}) }],
+  ])("falls back to CISA and reports 'cisa-fallback' on %s", async (_label, euvdResponse) => {
+    vi.stubGlobal("fetch", route(euvdResponse));
+    const { loadExploited, getExploitedSource } = await import("../euvd.js");
+    const result = await loadExploited();
+    expect(getExploitedSource()).toBe("cisa-fallback");
+    expect(result.get("CVE-2021-22555")?.sources).toEqual(["cisa_kev"]);
+    expect(result.has("CVE-2015-7501")).toBe(false); // EU KEV is missing in fallback mode
+    vi.unstubAllGlobals();
+  });
+
+  it("reports 'none' when EUVD and CISA both fail", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    const { loadExploited, getExploitedSource } = await import("../euvd.js");
+    await loadExploited();
+    expect(getExploitedSource()).toBe("none");
+    vi.unstubAllGlobals();
+  });
+
+  it("drops entries with a non-ISO dateAdded to null", async () => {
+    const dump = [...FILLER, { cveId: "CVE-2026-1", euvdId: "EUVD-2026-1", dateAdded: "Sep 9, 2026", sources: ["eukev_kev"] }];
+    vi.stubGlobal("fetch", route({ ok: true, headers: jsonHeaders, json: async () => dump }));
+    const { loadExploited } = await import("../euvd.js");
+    expect((await loadExploited()).get("CVE-2026-1")?.dateAdded).toBeNull();
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("loadEuvdMapping — request and CSV quirks", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  it("sends a User-Agent and tolerates CRLF line endings", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: async () => "euvd_id,cve_id\r\nEUVD-2021-0001,CVE-2021-23337\r\n" });
+    vi.stubGlobal("fetch", fetchMock);
+    const { loadEuvdMapping } = await import("../euvd.js");
+    const map = await loadEuvdMapping();
+    expect(fetchMock.mock.calls[0][1]?.headers?.["User-Agent"]).toContain("OtterSight");
+    expect(map.get("CVE-2021-23337")).toBe("EUVD-2021-0001");
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("lookupEuvdRecord — unscored records and aliases", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  const record = (over: Record<string, unknown>) => ({
+    ok: true,
+    status: 200,
+    text: async () => JSON.stringify({ id: "EUVD-2026-1", aliases: "GHSA-jfh8-c2jp-5v3q\nCVE-2021-44228\n", ...over }),
+  });
+
+  it("reports EPSS as unknown (null) for unscored records, not 0 %", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(record({ baseScore: 0, epss: 0 })));
+    const { lookupEuvdRecord } = await import("../euvd.js");
+    const r = await lookupEuvdRecord("EUVD-2026-1");
+    expect(r?.baseScore).toBeNull();
+    expect(r?.epss).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps a real EPSS of 0 on scored records", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(record({ baseScore: 5.3, baseScoreVersion: "3.1", epss: 0 })));
+    const { lookupEuvdRecord } = await import("../euvd.js");
+    expect((await lookupEuvdRecord("EUVD-2026-1"))?.epss).toBe(0);
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps GHSA-first alias order intact", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(record({ baseScore: 10, baseScoreVersion: "3.1", epss: 97.5 })));
+    const { lookupEuvdRecord } = await import("../euvd.js");
+    const r = await lookupEuvdRecord("EUVD-2026-1");
+    expect(r?.aliases).toEqual(["GHSA-jfh8-c2jp-5v3q", "CVE-2021-44228"]);
+    expect(r?.epss).toBe(0.975);
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    ["400 text/plain", { ok: false, status: 400, text: async () => "Required request parameter 'id'" }],
+    ["404 text/plain", { ok: false, status: 404, text: async () => "Not Found" }],
+    ["200 with HTML body", { ok: true, status: 200, text: async () => "<html>502 Bad Gateway</html>" }],
+  ])("returns null without throwing on %s", async (_label, res) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(res));
+    const { lookupEuvdRecord } = await import("../euvd.js");
+    expect(await lookupEuvdRecord("EUVD-2026-1")).toBeNull();
     vi.unstubAllGlobals();
   });
 });
