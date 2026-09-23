@@ -1,4 +1,4 @@
-import type { EnrichedVuln } from "@ottersight/scanner";
+import { formatExploited, formatEpss, DATA_ATTRIBUTION, type EnrichedVuln } from "@ottersight/scanner";
 
 const SEVERITY_ORDER = ["critical", "high", "medium", "low", "negligible", "unknown"];
 
@@ -45,10 +45,11 @@ export function renderMcpMarkdown(
   const rows = sorted.map((v) => {
     const sev = v.severity.toLowerCase();
     const emoji = SEVERITY_EMOJI[sev] ?? "";
-    return `| ${v.packageName} | ${v.packageVersion} | ${v.cveId} | ${emoji} ${v.severity.toUpperCase()} | ${v.euvdId ?? "-"} | ${v.inKev ? "\u26A0\uFE0F KEV" : "-"} | ${v.fixVersion ?? "none"} |`;
+    const exploited = v.exploitedSources.length > 0 ? `\u26A0\uFE0F ${formatExploited(v)}` : "-";
+    return `| ${v.packageName} | ${v.packageVersion} | ${v.euvdId ?? "-"} | ${v.cveId} | ${emoji} ${v.severity.toUpperCase()} | ${v.cvss?.toFixed(1) ?? "-"} | ${formatEpss(v.epss) || "-"} | ${exploited} | ${v.fixVersion ?? "none"} |`;
   });
 
-  const tableHeader = `| Package | Version | CVE | Severity | EUVD | KEV | Fix |\n| --- | --- | --- | --- | --- | --- | --- |`;
+  const tableHeader = `| Package | Version | EUVD | Advisory | Severity | CVSS | EPSS | Exploited | Fix |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |`;
 
   let output = `**${summaryText}**\n\n${tableHeader}\n${rows.join("\n")}\n`;
 
@@ -69,6 +70,8 @@ export function renderMcpMarkdown(
       output += `- ${v.cveId} in ${v.packageName}@${v.packageVersion} -- update to ${v.fixVersion}\n`;
     }
   }
+
+  output += `\n_${DATA_ATTRIBUTION}_\n`;
 
   // CTA (D-09)
   output += `\n${CTA}\n`;

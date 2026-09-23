@@ -1,6 +1,6 @@
 # EUVD-First & Digital Sovereignty — Plan
 
-**Created:** 2026-09-23 · **Status:** Phase 0 done · Phase 1 next
+**Created:** 2026-09-23 · **Status:** Phase 0 done · Phase 1 done (except depwatch follow-up) · Phase 2 next
 **Research:** [`tasks/euvd-sovereignty/RESEARCH.md`](euvd-sovereignty/RESEARCH.md) (GSD phase-research format)
 **Goal:** EUVD becomes OtterSight's primary enrichment and exploitation source; the runtime can run without US endpoints; every claim is verifiable.
 
@@ -20,15 +20,15 @@ Why first: research found claims that are no longer true or are legally risky.
 
 ## Phase 1 — EUVD-first enrichment (scanner, CLI, MCP)
 
-- [ ] **Wave 0:** fixtures (`kev/dump` excerpt incl. one `eukev_kev`-only entry, `enisaid` sample, 204 case); check whether Grype JSON exposes KEV/EPSS per match
-- [ ] Move `enrichVulnerabilities()` + `resolveCveId()` into `@ottersight/scanner` (`src/enrich.ts`); CLI + MCP import it; delete `packages/mcp/src/enrich.ts` copy; update CLAUDE.md (Build Order / MCP notes)
-- [ ] `euvd.ts`: add `loadExploited()` from `GET /api/kev/dump` (24h cache, custom UA) → `Map<cve, {sources, dateAdded, euvdId}>`; fall back to CISA GitHub mirror (`kev.ts`), then empty (D-04)
-- [ ] Helpers: `parseEuvdDate()` (UTC-anchored), `splitAliases()`, 204/empty-body tolerant fetch
-- [ ] `EnrichedVuln`: add `exploitedSources`, `exploitedSince`, `cvss`, `epss` (from Grype match); keep `inKev` (deprecated alias)
-- [ ] Renderers (terminal, markdown, SARIF): EUVD ID first `EUVD-… (CVE-…)`; `EU KEV` vs `CISA KEV`; show EPSS/CVSS; attribution line; SARIF tags `eu-kev` + `kev`, properties `exploitedSources`, `exploitedSince`
-- [ ] MCP: scan output includes new fields; `check-kev` tool reports sources (EU/CISA); `lookup-euvd` returns EUVD score/EPSS/references via `enisaid`
-- [ ] README: data sources table with operator + jurisdiction + licence/attribution
-- [ ] Tests per Validation Architecture in RESEARCH.md; live run on fixture repo (lodash 4.17.20, commons-collections 3.2.1 → must show EU KEV)
+- [x] **Wave 0:** fixtures (`kev/dump` excerpt incl. one `eukev_kev`-only entry, `enisaid` sample, 204 case); check whether Grype JSON exposes KEV/EPSS per match
+- [x] Move `enrichVulnerabilities()` + `resolveCveId()` into `@ottersight/scanner` (`src/enrich.ts`); CLI + MCP import it; delete `packages/mcp/src/enrich.ts` copy; update CLAUDE.md (Build Order / MCP notes)
+- [x] `euvd.ts`: add `loadExploited()` from `GET /api/kev/dump` (24h cache, custom UA) → `Map<cve, {sources, dateAdded, euvdId}>`; fall back to CISA GitHub mirror (`kev.ts`), then empty (D-04)
+- [x] Helpers: `parseEuvdDate()` (UTC-anchored), `splitAliases()`, 204/empty-body tolerant fetch
+- [x] `EnrichedVuln`: add `exploitedSources`, `exploitedSince`, `cvss`, `epss` (from Grype match); keep `inKev` (deprecated alias)
+- [x] Renderers (terminal, markdown, SARIF): EUVD ID first `EUVD-… (CVE-…)`; `EU KEV` vs `CISA KEV`; show EPSS/CVSS; attribution line; SARIF tags `eu-kev` + `kev`, properties `exploitedSources`, `exploitedSince`
+- [x] MCP: scan output includes new fields; `check-kev` tool reports sources (EU/CISA); `lookup-euvd` returns EUVD score/EPSS/references via `enisaid`
+- [x] README: data sources table with operator + jurisdiction + licence/attribution
+- [x] Tests per Validation Architecture in RESEARCH.md; live run on fixture repo (lodash 4.17.20, commons-collections 3.2.1 → must show EU KEV)
 - [ ] depwatch dashboard: verify the API worker gets the new fields via `@ottersight/scanner` (separate PR)
 
 ## Phase 2 — Sovereign runtime mode
@@ -66,3 +66,13 @@ Why first: research found claims that are no longer true or are legally risky.
 - ottersight-cli `ed40b39`: README data-sources table + ENISA credit, "NIS2/CRA compliance" wording removed, CLAUDE.md EPSS note.
 - depwatch `c8eb057` (PR #3): blog claim/date/timeline fixes (+ `updatedDate`, correction note), F03 → "Dashboard", CRA-ready subline → Annex I Part II, ENISA credit + non-endorsement in footer. `astro check` 0 errors.
 - Deviation: kept the "CRA-ready" label (design-system trust signal) but made the subline precise instead of renaming it.
+
+### Phase 1 (2026-09-23)
+- Wave 0: Grype JSON has per-match `epss[]` (0–1, FIRST) and `cvss[]`, **no KEV field** → KEV must come from us. EUVD `kev/dump` confirmed CVE-2015-7501 as EU-KEV-only (not in CISA's 1,721).
+- Scanner: `loadExploited()` (EUVD `kev/dump` → CISA mirror → empty), `lookupEuvdRecord()` (204-safe, EPSS ÷100), `parseEuvdDate()` (UTC), `splitEuvdList()`; shared `enrichVulnerabilities()` + `formatExploited`/`formatEpss`/`DATA_ATTRIBUTION` moved into `@ottersight/scanner`; CLI/MCP copies deleted.
+- `EnrichedVuln`: `exploitedSources`, `exploitedSince`, `cvss`, `epss`; `inKev` kept (deprecated).
+- Outputs: EUVD column first, CVSS/EPSS, "EU KEV" / "CISA KEV" / "EU + CISA KEV", summary counts EU-KEV-only, attribution line; SARIF tags `kev` + `eu-kev`, new properties, run-level `dataAttribution`; MCP `check-kev` reports sources/date, `lookup-euvd` returns the EUVD record.
+- Tests: 92/92 (scanner 46, cli 31, mcp 15); `tsc --noEmit` clean in all three packages; EUVD date tests pass under `TZ=Europe/Berlin`.
+- Live run on fixture (lodash 4.17.20 + commons-collections 3.2.1): commons-collections CVE-2015-7501 flagged "⚠ EU KEV" — the previous CLI reported nothing for it.
+- Found: `pnpm lint` is a no-op (no package has a lint script) — CLAUDE.md corrected; adding real lint scripts is a separate task.
+- Open: depwatch API worker still uses `loadKev()` (CISA only) — switch to `loadExploited()` in a depwatch PR.

@@ -10,6 +10,10 @@ const vulns: EnrichedVuln[] = [
     severity: "critical",
     euvdId: "EUVD-2021-0001",
     inKev: true,
+    exploitedSources: ["eukev_kev"],
+    exploitedSince: "2025-07-14",
+    cvss: 7.2,
+    epss: 0.21333,
     fixVersion: "4.17.21",
     locations: ["package-lock.json", "apps/web/package-lock.json"],
   },
@@ -20,6 +24,10 @@ const vulns: EnrichedVuln[] = [
     severity: "critical",
     euvdId: null,
     inKev: false,
+    exploitedSources: [],
+    exploitedSince: null,
+    cvss: null,
+    epss: null,
     fixVersion: "4.17.21",
     locations: ["legacy/package-lock.json"],
   },
@@ -30,6 +38,10 @@ const vulns: EnrichedVuln[] = [
     severity: "medium",
     euvdId: null,
     inKev: false,
+    exploitedSources: [],
+    exploitedSince: null,
+    cvss: null,
+    epss: null,
     fixVersion: null,
   },
 ];
@@ -82,7 +94,7 @@ describe("renderSarif", () => {
   it("includes KEV, EUVD and fix info in the message", () => {
     const text = run.results[0].message.text;
     expect(text).toContain("lodash@4.17.20");
-    expect(text).toContain("CISA KEV");
+    expect(text).toContain("Known exploited (EU KEV");
     expect(text).toContain("EUVD-2021-0001");
     expect(text).toContain("Fixed in 4.17.21");
     expect(run.results[2].message.text).toContain("No fix available");
@@ -97,5 +109,15 @@ describe("renderSarif", () => {
     const empty = JSON.parse(renderSarif([], "1.2.3"));
     expect(empty.runs[0].results).toEqual([]);
     expect(empty.runs[0].tool.driver.rules).toEqual([]);
+  });
+
+  it("tags EU KEV findings and carries the new properties", () => {
+    const rule = run.tool.driver.rules.find((r: { id: string }) => r.id === "CVE-2021-23337");
+    expect(rule.properties.tags).toEqual(expect.arrayContaining(["kev", "eu-kev"]));
+    const result = run.results[0];
+    expect(result.message.text).toContain("Known exploited (EU KEV, since 2025-07-14)");
+    expect(result.properties.exploitedSources).toEqual(["eukev_kev"]);
+    expect(result.properties.epss).toBe(0.21333);
+    expect(run.properties.dataAttribution).toContain("ENISA");
   });
 });
