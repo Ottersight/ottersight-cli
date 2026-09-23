@@ -127,6 +127,29 @@ async function fetchEuvdKevDump(): Promise<Map<string, ExploitedInfo>> {
 }
 
 /**
+ * EUVD keeps CISA entries that CISA has since removed (e.g. CVE-2026-69836: added and removed by
+ * CISA within an hour on 2026-08-21, still in the EUVD dump a month later). Drop "cisa_kev" from
+ * entries missing in the current CISA catalogue, and drop entries left without a source.
+ * Skipped when the CISA catalogue could not be loaded (empty set), so EUVD data is kept as is.
+ */
+function dropStaleCisaEntries(
+  map: Map<string, ExploitedInfo>,
+  cisa: Set<string>,
+): Map<string, ExploitedInfo> {
+  if (cisa.size === 0) return map;
+  let dropped = 0;
+  for (const [cveId, info] of map) {
+    if (!info.sources.includes("cisa_kev") || cisa.has(cveId)) continue;
+    const sources = info.sources.filter((s) => s !== "cisa_kev");
+    if (sources.length === 0) map.delete(cveId);
+    else map.set(cveId, { ...info, sources });
+    dropped++;
+  }
+  if (dropped > 0) log.info("Dropped stale CISA KEV entries from EUVD dump", { dropped });
+  return map;
+}
+
+/**
  * Known exploited vulnerabilities keyed by CVE ID: EUVD KEV dump (CISA KEV + EU KEV),
  * falling back to the CISA KEV mirror, then to an empty map. Never throws.
  */
@@ -136,7 +159,7 @@ export async function loadExploited(): Promise<Map<string, ExploitedInfo>> {
   }
 
   try {
-    exploitedMap = await fetchEuvdKevDump();
+    exploitedMap = dropStaleCisaEntries(await fetchEuvdKevDump(), await loadKev());
     exploitedLoadedAt = Date.now();
     exploitedSource = "euvd";
     log.info("EUVD KEV dump loaded", { entries: exploitedMap.size });
@@ -235,11 +258,8 @@ export async function lookupEuvdRecord(euvdId: string): Promise<EuvdRecord | nul
       baseScore: typeof r.baseScore === "number" && r.baseScore > 0 ? r.baseScore : null,
       baseScoreVersion: r.baseScoreVersion || null,
       baseScoreVector: r.baseScoreVector || null,
-      // Unscored records carry baseScore 0, epss 0 and no version: EPSS is unknown, not 0 %.
-      epss:
-        typeof r.epss === "number" && !(r.epss === 0 && !(r.baseScore && r.baseScore > 0) && !r.baseScoreVersion)
-          ? Math.round(r.epss * 1000) / 100000
-          : null,
+      // FIRST never publishes an EPSS below 0.0001, so EUVD's 0 always means "no score yet".
+      epss: typeof r.epss === "number" && r.epss > 0 ? Math.round(r.epss * 1000) / 100000 : null,
       aliases: splitEuvdList(r.aliases),
       references: splitEuvdList(r.references),
       assigner: r.assigner?.trim() || null,
