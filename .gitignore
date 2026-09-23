@@ -11,3 +11,14 @@ docs/strategy/
 *.draft.md
 *.internal.md
 .planning/
+
+# Internal: agent instructions, workflow templates, plans and research.
+# Kept locally, never published in this public repo.
+CLAUDE.md
+AGENTS.md
+.claude/
+templates/
+tasks/
+docs/context/
+docs/summaries/
+docs/archive/
