@@ -209,4 +209,28 @@ describe("handleScan", () => {
       vi.unstubAllEnvs();
     }
   });
+
+  it("OTTERSIGHT_EU_SOURCES=1: EU-only KEV, no OSV, Syft/Grype env, mirror notice", async () => {
+    const { scanLocal, loadExploited, loadEuvdMapping, loadCveAliases } = await import("@ottersight/scanner");
+    vi.mocked(scanLocal).mockResolvedValue(makeFixtureScanResult([]) as ReturnType<typeof scanLocal> extends Promise<infer T> ? T : never);
+    vi.mocked(loadExploited).mockResolvedValue(new Map());
+    vi.mocked(loadEuvdMapping).mockResolvedValue(new Map());
+    vi.stubEnv("OTTERSIGHT_EU_SOURCES", "1");
+    try {
+      const { handleScan } = await import("../tools/scan.js");
+      const result = await handleScan({ path: "/tmp/test-project" });
+      expect(loadExploited).toHaveBeenCalledWith({ euOnly: true });
+      expect(loadCveAliases).not.toHaveBeenCalled();
+      expect(vi.mocked(scanLocal).mock.calls[0][0]).toMatchObject({ euSources: true, grypeDbUrl: undefined });
+      expect(result.structuredContent.euSources).toBe(true);
+      expect((result.content[0] as { text: string }).text).toContain("grype.anchore.io");
+
+      vi.stubEnv("OTTERSIGHT_GRYPE_DB_URL", "https://mirror.example.eu/databases");
+      const withMirror = await handleScan({ path: "/tmp/test-project" });
+      expect(vi.mocked(scanLocal).mock.calls[1][0]).toMatchObject({ grypeDbUrl: "https://mirror.example.eu/databases" });
+      expect((withMirror.content[0] as { text: string }).text).not.toContain("grype.anchore.io");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });

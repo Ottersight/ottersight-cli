@@ -83,7 +83,7 @@ const MIN_KEV_DUMP_ENTRIES = 1000;
  */
 export type ExploitedSource = "euvd" | "euvd-stale" | "cisa-fallback" | "none";
 
-let exploitedMap: Map<string, ExploitedInfo> | null = null;
+let exploitedMap: Map<string, ExploitedInfo> | null = null; // raw EUVD dump, before the CISA cross-check
 let exploitedLoadedAt = 0;
 let exploitedSource: ExploitedSource = "none";
 
@@ -131,12 +131,14 @@ async function fetchEuvdKevDump(): Promise<Map<string, ExploitedInfo>> {
  * CISA within an hour on 2026-08-21, still in the EUVD dump a month later). Drop "cisa_kev" from
  * entries missing in the current CISA catalogue, and drop entries left without a source.
  * Skipped when the CISA catalogue could not be loaded (empty set), so EUVD data is kept as is.
+ * Returns a new map; the cached EUVD map is not modified.
  */
 function dropStaleCisaEntries(
-  map: Map<string, ExploitedInfo>,
+  euvd: Map<string, ExploitedInfo>,
   cisa: Set<string>,
 ): Map<string, ExploitedInfo> {
-  if (cisa.size === 0) return map;
+  if (cisa.size === 0) return euvd;
+  const map = new Map(euvd);
   let dropped = 0;
   for (const [cveId, info] of map) {
     if (!info.sources.includes("cisa_kev") || cisa.has(cveId)) continue;
@@ -149,37 +151,56 @@ function dropStaleCisaEntries(
   return map;
 }
 
+export interface LoadExploitedOptions {
+  /**
+   * Use ENISA EUVD only: no request to the CISA catalogue (GitHub, US), so no cross-check of
+   * withdrawn CISA entries and no CISA fallback when EUVD is unreachable.
+   */
+  euOnly?: boolean;
+}
+
 /**
  * Known exploited vulnerabilities keyed by CVE ID: EUVD KEV dump (CISA KEV + EU KEV),
  * falling back to the CISA KEV mirror, then to an empty map. Never throws.
  */
-export async function loadExploited(): Promise<Map<string, ExploitedInfo>> {
+export async function loadExploited(opts: LoadExploitedOptions = {}): Promise<Map<string, ExploitedInfo>> {
+  const finish = async (euvd: Map<string, ExploitedInfo>) =>
+    opts.euOnly ? euvd : dropStaleCisaEntries(euvd, await loadKev());
+
   if (exploitedMap && Date.now() - exploitedLoadedAt < MAX_AGE_MS) {
-    return exploitedMap;
+    exploitedSource = "euvd";
+    return finish(exploitedMap);
   }
 
   try {
-    exploitedMap = dropStaleCisaEntries(await fetchEuvdKevDump(), await loadKev());
+    exploitedMap = await fetchEuvdKevDump();
     exploitedLoadedAt = Date.now();
     exploitedSource = "euvd";
     log.info("EUVD KEV dump loaded", { entries: exploitedMap.size });
-    return exploitedMap;
+    return finish(exploitedMap);
   } catch (err) {
-    log.error("Failed to load EUVD KEV dump, falling back to CISA KEV", {
+    log.error(opts.euOnly ? "Failed to load EUVD KEV dump" : "Failed to load EUVD KEV dump, falling back to CISA KEV", {
       error: err instanceof Error ? err.message : String(err),
     });
   }
 
-  // Fallback: CISA only. Not cached, so the next call retries EUVD.
-  const cisa = await loadKev();
-  const fallback = new Map<string, ExploitedInfo>();
-  for (const cveId of cisa) {
-    fallback.set(cveId, { sources: ["cisa_kev"], dateAdded: null, euvdId: null });
-  }
   // A stale EUVD map (from an earlier success) still beats CISA-only data.
-  exploitedSource = exploitedMap ? "euvd-stale" : fallback.size > 0 ? "cisa-fallback" : "none";
+  if (exploitedMap) {
+    exploitedSource = "euvd-stale";
+    log.warn("exploited_source_degraded", { source: exploitedSource });
+    return finish(exploitedMap);
+  }
+
+  // Fallback: CISA only (not in EU-only mode). Not cached, so the next call retries EUVD.
+  const fallback = new Map<string, ExploitedInfo>();
+  if (!opts.euOnly) {
+    for (const cveId of await loadKev()) {
+      fallback.set(cveId, { sources: ["cisa_kev"], dateAdded: null, euvdId: null });
+    }
+  }
+  exploitedSource = fallback.size > 0 ? "cisa-fallback" : "none";
   log.warn("exploited_source_degraded", { source: exploitedSource });
-  return exploitedMap ?? fallback;
+  return fallback;
 }
 
 // ── EUVD record helpers ──

@@ -23,13 +23,20 @@ const EXPLOITED_SOURCE_NOTICE = {
   none: "Note: known-exploited data (EUVD, CISA KEV) could not be loaded; exploitation flags are missing.",
 } as const;
 
+const EU_SOURCES_NO_MIRROR_NOTICE =
+  "Note: --eu-sources without --grype-db-url: the Grype vulnerability DB is still downloaded from Anchore (grype.anchore.io, US).";
+
 interface ScanOptions {
   format?: "table" | "sarif";
   output?: string;
   ignore?: string[];
   quiet?: boolean;
-  /** Resolve GHSA-only findings to CVEs via OSV.dev (default true) */
+  /** Resolve GHSA-only findings to CVEs via OSV.dev (default true; always off with euSources) */
   osv?: boolean;
+  /** No US endpoints for enrichment (EUVD only) and no Syft/Grype update checks */
+  euSources?: boolean;
+  /** Grype DB listing base URL (EU mirror) */
+  grypeDbUrl?: string;
   version?: string;
 }
 
@@ -55,12 +62,13 @@ export async function scanCommand(scanPath: string, options: ScanOptions): Promi
   await checkDependencies();
 
   const quiet = options.quiet ?? false;
+  const euSources = options.euSources ?? false;
 
   // Step 1: Run scan (Syft SBOM + Grype vulnerability analysis)
   const scanSpinner = quiet ? null : ora("Generating SBOM with Syft...").start();
   let scanResult;
   try {
-    scanResult = await scanLocal({ path: resolvedPath });
+    scanResult = await scanLocal({ path: resolvedPath, euSources, grypeDbUrl: options.grypeDbUrl });
     scanSpinner?.succeed("SBOM generated, vulnerabilities analyzed");
   } catch (err) {
     scanSpinner?.fail("Scan failed");
@@ -75,9 +83,9 @@ export async function scanCommand(scanPath: string, options: ScanOptions): Promi
   const enrichSpinner = quiet ? null : ora("Enriching with EUVD (EU + CISA KEV) data...").start();
 
   const [exploited, euvdMap, cveAliases] = await Promise.all([
-    loadExploited(),
+    loadExploited({ euOnly: euSources }),
     loadEuvdMapping(),
-    options.osv === false ? undefined : loadCveAliases(matches),
+    euSources || options.osv === false ? undefined : loadCveAliases(matches),
   ]);
 
   enrichSpinner?.succeed("Enrichment complete");
@@ -116,6 +124,9 @@ export async function scanCommand(scanPath: string, options: ScanOptions): Promi
   if (exploitedSource !== "euvd") {
     status(chalk.yellow(EXPLOITED_SOURCE_NOTICE[exploitedSource]));
   }
+  if (euSources && !options.grypeDbUrl) {
+    status(chalk.yellow(EU_SOURCES_NO_MIRROR_NOTICE));
+  }
   if (ignoredCount > 0) {
     status(chalk.gray(`Ignored: ${ignoredCount} finding(s) via --ignore`));
   }
@@ -128,5 +139,6 @@ export async function scanCommand(scanPath: string, options: ScanOptions): Promi
   }
 
   // Exit code 0 = scan complete (even with vulnerabilities found). Per D-03.
-  process.exit(0);
+  // No process.exit(): it cuts off stdout writes still pending on a pipe (SARIF stopped at 64 KiB).
+  process.exitCode = 0;
 }

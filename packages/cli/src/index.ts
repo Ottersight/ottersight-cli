@@ -28,7 +28,12 @@ program
   .option("-i, --ignore <id>", "ignore a vulnerability by CVE/GHSA ID (repeatable)", collect, [])
   .option("-q, --quiet", "suppress progress spinners")
   .option("--no-osv", "do not ask OSV.dev (Google, US) for CVE IDs of GHSA-only findings")
-  .action(async (scanPath: string, options: { format: "table" | "sarif"; output?: string; ignore: string[]; quiet?: boolean; osv: boolean }) => {
+  .option("--eu-sources", "contact no US endpoints for enrichment: EUVD only (no CISA, no OSV), no Syft/Grype update checks")
+  .addOption(
+    new Option("--grype-db-url <url>", "Grype DB listing base URL, e.g. an EU mirror (Grype appends /v6/latest.json)")
+      .env("OTTERSIGHT_GRYPE_DB_URL"),
+  )
+  .action(async (scanPath: string, options: { format: "table" | "sarif"; output?: string; ignore: string[]; quiet?: boolean; osv: boolean; euSources?: boolean; grypeDbUrl?: string }) => {
     await scanCommand(scanPath, { ...options, version: __OTTERSIGHT_VERSION__ });
   });
 
