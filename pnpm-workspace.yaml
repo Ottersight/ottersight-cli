@@ -1,2 +1,11 @@
 packages:
   - packages/*
+
+# Supply-chain guard: don't install package versions published less than 3 days ago
+# (compromised releases are usually caught and removed within that window).
+minimumReleaseAge: 4320
+
+# Dependency lifecycle scripts stay blocked (pnpm default). esbuild ships prebuilt binaries
+# via optional dependencies, so its postinstall is not needed.
+ignoredBuiltDependencies:
+  - esbuild
