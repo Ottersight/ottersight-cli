@@ -218,6 +218,20 @@ ottersight scan . --ignore CVE-2021-23337 --ignore GHSA-29mw-wpgm-hmr9
 
 Some findings only carry a GitHub advisory ID (GHSA) and no CVE, so EUVD and KEV data can't be matched. For those, OtterSight asks [OSV.dev](https://osv.dev) for the CVE alias. OSV.dev is operated by Google (US). To keep these lookups off, use `--no-osv` (CLI) or set `OTTERSIGHT_NO_OSV=1` (MCP server).
 
+## EU sources only
+
+`--eu-sources` keeps enrichment on EU infrastructure: known-exploited data and EUVD IDs come from ENISA EUVD only (no request to CISA's catalogue on GitHub, no OSV.dev), and Syft and Grype skip their update checks for new app versions.
+
+Grype still needs its vulnerability database. By default it is downloaded from Anchore (`grype.anchore.io`, US). Point Grype at a mirror you trust with `--grype-db-url` (or `OTTERSIGHT_GRYPE_DB_URL`); the scan then fails if the mirror can't be reached instead of silently using an older database.
+
+```bash
+ottersight scan . --eu-sources --grype-db-url https://<your-mirror>/databases
+```
+
+For the MCP server, set `OTTERSIGHT_EU_SOURCES=1` and `OTTERSIGHT_GRYPE_DB_URL`.
+
+Note: the Grype database itself is compiled from sources that include US ones (NVD, GitHub Advisory Database, CISA KEV and FIRST EPSS data). `--eu-sources` controls which endpoints are contacted at scan time, not where the data originates.
+
 ## OtterSight Cloud
 
 > **Coming soon.** [OtterSight Cloud](https://ottersight.com) will be the hosted service built on this scanner engine.

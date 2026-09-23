@@ -25,7 +25,7 @@ export {
   parseEuvdDate,
   splitEuvdList,
 } from "./euvd.js";
-export type { ExploitedInfo, KevSource, EuvdRecord, ExploitedSource } from "./euvd.js";
+export type { ExploitedInfo, KevSource, EuvdRecord, ExploitedSource, LoadExploitedOptions } from "./euvd.js";
 export {
   enrichVulnerabilities,
   resolveCveId,

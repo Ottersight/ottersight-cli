@@ -47,6 +47,10 @@ export interface GrypeOutput {
 export interface ScanLocalInput {
   path: string;
   timeout?: number;
+  /** Keep Syft/Grype off US endpoints at scan time: no app-update checks, no external sources */
+  euSources?: boolean;
+  /** Grype DB listing base URL (e.g. an EU mirror; Grype appends /v6/latest.json). Default: Anchore */
+  grypeDbUrl?: string;
 }
 
 export interface ScanMeta {

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // euvd.ts uses module-level cache (euvdMap, euvdLoadedAt).
 // We reset modules before each test to get fresh cache state.
@@ -422,5 +422,49 @@ describe("loadExploited — CISA cross-check of EUVD KEV entries", () => {
     expect(result.get("CVE-2026-69836")?.sources).toEqual(["cisa_kev"]);
     expect(getExploitedSource()).toBe("euvd");
     vi.unstubAllGlobals();
+  });
+});
+
+describe("loadExploited({ euOnly: true })", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const dump = [
+    ...FILLER,
+    { cveId: "CVE-2026-69836", euvdId: "EUVD-2026-69836", dateAdded: "2026-08-21", sources: ["cisa_kev"] },
+  ];
+  const cisa = { vulnerabilities: FILLER.map((f) => ({ cveID: f.cveId })) };
+
+  it("never contacts the CISA catalogue and keeps EUVD data as is", async () => {
+    const fetchMock = vi.fn(async (url: string) =>
+      url.includes("euvdservices") ? { ok: true, headers: jsonHeaders, json: async () => dump } : { ok: true, json: async () => cisa },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { loadExploited, getExploitedSource } = await import("../euvd.js");
+
+    const result = await loadExploited({ euOnly: true });
+    expect(fetchMock.mock.calls.every(([url]) => String(url).includes("euvdservices.enisa.europa.eu"))).toBe(true);
+    expect(result.get("CVE-2026-69836")?.sources).toEqual(["cisa_kev"]);
+    expect(getExploitedSource()).toBe("euvd");
+
+    // Same cached dump, default mode: cross-check applies, cache itself is not modified
+    expect((await loadExploited()).has("CVE-2026-69836")).toBe(false);
+    expect((await loadExploited({ euOnly: true })).has("CVE-2026-69836")).toBe(true);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("euvdservices"))).toHaveLength(1);
+  });
+
+  it("no CISA fallback when EUVD fails: empty map, source 'none'", async () => {
+    const fetchMock = vi.fn(async (url: string) =>
+      url.includes("euvdservices") ? { ok: false, status: 503 } : { ok: true, json: async () => cisa },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { loadExploited, getExploitedSource } = await import("../euvd.js");
+
+    expect((await loadExploited({ euOnly: true })).size).toBe(0);
+    expect(getExploitedSource()).toBe("none");
+    expect(fetchMock.mock.calls.some(([url]) => !String(url).includes("euvdservices"))).toBe(false);
   });
 });

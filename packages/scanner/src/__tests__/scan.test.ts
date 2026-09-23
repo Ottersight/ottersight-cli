@@ -12,7 +12,7 @@ vi.mock("node:child_process", () => {
   return { execFile };
 });
 
-import { scanLocal } from "../scan.js";
+import { scanLocal, toolEnv } from "../scan.js";
 
 const MOCK_SYFT_OUTPUT = JSON.stringify({
   components: [{ type: "library", name: "lodash", version: "4.17.21" }],
@@ -77,5 +77,47 @@ describe("scanLocal", () => {
     setupMock({ gitFails: true });
     const result = await scanLocal({ path: "/tmp/no-git" });
     expect(result.commitSha).toBe("");
+  });
+});
+
+describe("scanLocal tool environment", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const envOf = (cmd: string) =>
+    mockExecFileAsync.mock.calls.find(([c]) => c === cmd)![2].env as NodeJS.ProcessEnv;
+
+  it("default: inherits the environment, no overrides", async () => {
+    setupMock({});
+    await scanLocal({ path: "/tmp/test-repo" });
+    expect(envOf("grype").GRYPE_DB_UPDATE_URL).toBe(process.env.GRYPE_DB_UPDATE_URL);
+    expect(envOf("grype").GRYPE_CHECK_FOR_APP_UPDATE).toBe(process.env.GRYPE_CHECK_FOR_APP_UPDATE);
+  });
+
+  it("euSources + grypeDbUrl: no update checks, no external sources, DB from the mirror", async () => {
+    setupMock({});
+    await scanLocal({ path: "/tmp/test-repo", euSources: true, grypeDbUrl: "https://mirror.example.eu/databases" });
+    expect(envOf("syft")).toMatchObject({ SYFT_CHECK_FOR_APP_UPDATE: "false" });
+    expect(envOf("grype")).toMatchObject({
+      GRYPE_CHECK_FOR_APP_UPDATE: "false",
+      GRYPE_EXTERNAL_SOURCES_ENABLE: "false",
+      GRYPE_DB_UPDATE_URL: "https://mirror.example.eu/databases",
+      GRYPE_DB_REQUIRE_UPDATE_CHECK: "true",
+      GRYPE_DB_MAX_UPDATE_CHECK_FREQUENCY: "0s",
+    });
+  });
+
+  it("toolEnv keeps PATH and does not mutate process.env", () => {
+    const env = toolEnv({ euSources: true });
+    expect(env.PATH).toBe(process.env.PATH);
+    expect(process.env.SYFT_CHECK_FOR_APP_UPDATE).not.toBe("false");
+  });
+
+  it("names the mirror when Grype fails with a custom DB URL", async () => {
+    mockExecFileAsync.mockImplementation(async (cmd: string) => {
+      if (cmd === "grype") throw new Error("Command failed: grype");
+      return { stdout: cmd === "syft" ? MOCK_SYFT_OUTPUT : "abc\n", stderr: "" };
+    });
+    await expect(scanLocal({ path: "/tmp/r", grypeDbUrl: "https://mirror.example.eu/databases" }))
+      .rejects.toThrow("Grype DB mirror https://mirror.example.eu/databases");
   });
 });
