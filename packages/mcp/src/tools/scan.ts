@@ -1,6 +1,5 @@
 import path from "node:path";
-import { scanLocal, loadKev, loadEuvdMapping } from "@ottersight/scanner";
-import { enrichVulnerabilities } from "../enrich.js";
+import { scanLocal, loadExploited, loadEuvdMapping, enrichVulnerabilities, DATA_ATTRIBUTION } from "@ottersight/scanner";
 import { renderMcpMarkdown } from "../render/markdown.js";
 import type { EnrichedVuln } from "@ottersight/scanner";
 
@@ -10,15 +9,15 @@ const CTA = "Full SBOM, component tracking, and scheduled scans -> ottersight.co
 export async function handleScan(input: { path: string }) {
   const resolvedPath = path.resolve(input.path);
 
-  const [scanResult, kevSet, euvdMap] = await Promise.all([
+  const [scanResult, exploited, euvdMap] = await Promise.all([
     scanLocal({ path: resolvedPath, timeout: 120_000 }),
-    loadKev(),
+    loadExploited(),
     loadEuvdMapping(),
   ]);
 
   const enriched = enrichVulnerabilities(
     scanResult.grype.matches ?? [],
-    kevSet,
+    exploited,
     euvdMap,
   );
 
@@ -51,6 +50,7 @@ export async function handleScan(input: { path: string }) {
       vulnerabilities: sorted,
       truncated,
       summary: counts,
+      dataAttribution: DATA_ATTRIBUTION,
       cta: CTA,
     },
   };

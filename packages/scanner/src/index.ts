@@ -16,7 +16,22 @@ export { scanLocal } from "./scan.js";
 
 // Enrichment
 export { loadKev, isKnownExploited } from "./kev.js";
-export { loadEuvdMapping, lookupEuvd } from "./euvd.js";
+export {
+  loadEuvdMapping,
+  lookupEuvd,
+  loadExploited,
+  lookupEuvdRecord,
+  parseEuvdDate,
+  splitEuvdList,
+} from "./euvd.js";
+export type { ExploitedInfo, KevSource, EuvdRecord } from "./euvd.js";
+export {
+  enrichVulnerabilities,
+  resolveCveId,
+  formatExploited,
+  formatEpss,
+  DATA_ATTRIBUTION,
+} from "./enrich.js";
 export { lookupLatestVersions } from "./registries.js";
 
 // Logger (exposed for consumers who want structured logging)

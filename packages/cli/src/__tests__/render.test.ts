@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { EnrichedVuln } from "@ottersight/scanner";
-import { renderTerminalTable, renderSummaryLine } from "../render/terminal.js";
+import { renderTerminalTable, renderSummaryLine, renderAttribution } from "../render/terminal.js";
 import { renderMarkdown } from "../render/markdown.js";
 
 const testVulns: EnrichedVuln[] = [
@@ -11,6 +11,10 @@ const testVulns: EnrichedVuln[] = [
     severity: "critical",
     euvdId: "EUVD-2021-0001",
     inKev: true,
+    exploitedSources: ["eukev_kev"],
+    exploitedSince: "2025-07-14",
+    cvss: 7.2,
+    epss: 0.21333,
     fixVersion: "4.17.21",
   },
   {
@@ -20,6 +24,10 @@ const testVulns: EnrichedVuln[] = [
     severity: "high",
     euvdId: null,
     inKev: false,
+    exploitedSources: [],
+    exploitedSince: null,
+    cvss: null,
+    epss: null,
     fixVersion: "4.18.0",
   },
   {
@@ -29,6 +37,10 @@ const testVulns: EnrichedVuln[] = [
     severity: "medium",
     euvdId: null,
     inKev: false,
+    exploitedSources: [],
+    exploitedSince: null,
+    cvss: null,
+    epss: null,
     fixVersion: null,
   },
   {
@@ -38,6 +50,10 @@ const testVulns: EnrichedVuln[] = [
     severity: "low",
     euvdId: null,
     inKev: false,
+    exploitedSources: [],
+    exploitedSince: null,
+    cvss: null,
+    epss: null,
     fixVersion: "3.2.0",
   },
 ];
@@ -52,10 +68,19 @@ describe("renderTerminalTable", () => {
     expect(criticalIdx).toBeLessThan(lowIdx);
   });
 
-  it("shows KEV warning flag", () => {
+  it("shows the exploited flag with its source (EU KEV)", () => {
     const output = renderTerminalTable(testVulns);
-    // lodash has inKev: true — should show ⚠ (U+26A0)
+    // lodash is in EU KEV — should show ⚠ (U+26A0) and the source label
     expect(output).toContain("\u26A0");
+    expect(output).toContain("EU KEV");
+  });
+
+  it("puts the EUVD column before the advisory column and shows CVSS/EPSS", () => {
+    const output = renderTerminalTable(testVulns);
+    const header = output.split("\n")[1];
+    expect(header.indexOf("EUVD")).toBeLessThan(header.indexOf("Advisory"));
+    expect(output).toContain("7.2");
+    expect(output).toContain("21.3%");
   });
 });
 
@@ -63,8 +88,17 @@ describe("renderSummaryLine", () => {
   it("produces correct count format with multiple severities", () => {
     const result = renderSummaryLine(testVulns);
     expect(result).toBe(
-      "4 vulnerabilities found (1 critical, 1 high, 1 medium, 1 low)"
+      "4 vulnerabilities found (1 critical, 1 high, 1 medium, 1 low) · 1 known exploited (1 only in EU KEV)"
     );
+  });
+
+  it("omits the exploited suffix when nothing is known exploited", () => {
+    const result = renderSummaryLine(testVulns.slice(1));
+    expect(result).toBe("3 vulnerabilities found (1 high, 1 medium, 1 low)");
+  });
+
+  it("attribution acknowledges ENISA EUVD as source", () => {
+    expect(renderAttribution()).toContain("ENISA EU Vulnerability Database (EUVD), source acknowledged");
   });
 
   it('returns "No vulnerabilities found" for empty array', () => {
@@ -89,6 +123,13 @@ describe("renderMarkdown", () => {
     const output = renderMarkdown(testVulns);
     expect(output).toContain("<details>");
     expect(output).toContain("</details>");
+  });
+
+  it("shows EUVD-first columns, EU KEV and the ENISA attribution", () => {
+    const output = renderMarkdown(testVulns);
+    expect(output).toContain("| Package | Version | EUVD | Advisory | Severity | CVSS | EPSS | Exploited | Fix |");
+    expect(output).toContain("EU KEV");
+    expect(output).toContain("source acknowledged");
   });
 
   it("includes summary line with vulnerability count", () => {

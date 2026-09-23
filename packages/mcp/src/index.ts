@@ -11,7 +11,7 @@ server.registerTool(
   "scan",
   {
     description:
-      "Scan a local directory for security vulnerabilities using Syft + Grype. Returns enriched CVE list with KEV and EUVD data.",
+      "Scan a local directory for security vulnerabilities using Syft + Grype. Returns findings enriched with ENISA EUVD data: EUVD IDs, known exploitation (EU KEV + CISA KEV), CVSS and EPSS.",
     inputSchema: z.object({
       path: z.string().describe("Absolute path to the directory to scan"),
     }),
@@ -33,7 +33,7 @@ server.registerTool(
   "check-kev",
   {
     description:
-      "Check if a CVE ID is in the CISA Known Exploited Vulnerabilities (KEV) catalog.",
+      "Check if a CVE ID is known exploited, using ENISA EUVD's KEV data (EU KEV + CISA KEV). Reports which catalogue lists it and since when.",
     inputSchema: z.object({
       cve_id: z.string().describe("CVE identifier, e.g. CVE-2021-44228"),
     }),
@@ -55,7 +55,7 @@ server.registerTool(
   "lookup-euvd",
   {
     description:
-      "Look up the European Union Vulnerability Database (EUVD) ID for a given CVE.",
+      "Look up the ENISA EU Vulnerability Database (EUVD) entry for a CVE: EUVD ID, CVSS, EPSS, exploitation date, aliases and description.",
     inputSchema: z.object({
       cve_id: z.string().describe("CVE identifier, e.g. CVE-2021-44228"),
     }),

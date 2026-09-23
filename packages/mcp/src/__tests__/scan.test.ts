@@ -2,10 +2,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { GrypeMatch } from "@ottersight/scanner";
 
 // Mock @ottersight/scanner module
-vi.mock("@ottersight/scanner", () => {
+vi.mock("@ottersight/scanner", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@ottersight/scanner")>();
   return {
+    ...actual,
     scanLocal: vi.fn(),
-    loadKev: vi.fn(),
+    loadExploited: vi.fn(),
     loadEuvdMapping: vi.fn(),
   };
 });
@@ -42,10 +44,10 @@ describe("handleScan", () => {
   });
 
   it("returns content array with type 'text'", async () => {
-    const { scanLocal, loadKev, loadEuvdMapping } = await import("@ottersight/scanner");
+    const { scanLocal, loadExploited, loadEuvdMapping } = await import("@ottersight/scanner");
     const matches = [makeMatch({ name: "lodash", version: "4.17.20", id: "CVE-2021-23337", severity: "high" })];
     vi.mocked(scanLocal).mockResolvedValue(makeFixtureScanResult(matches) as ReturnType<typeof scanLocal> extends Promise<infer T> ? T : never);
-    vi.mocked(loadKev).mockResolvedValue(new Set(["CVE-2021-23337"]));
+    vi.mocked(loadExploited).mockResolvedValue(new Map([["CVE-2021-23337", { sources: ["cisa_kev" as const], dateAdded: "2021-02-15", euvdId: null }]]));
     vi.mocked(loadEuvdMapping).mockResolvedValue(new Map([["CVE-2021-23337", "EUVD-2021-23337"]]));
 
     const { handleScan } = await import("../tools/scan.js");
@@ -57,10 +59,10 @@ describe("handleScan", () => {
   });
 
   it("content text contains CVE ID from scan", async () => {
-    const { scanLocal, loadKev, loadEuvdMapping } = await import("@ottersight/scanner");
+    const { scanLocal, loadExploited, loadEuvdMapping } = await import("@ottersight/scanner");
     const matches = [makeMatch({ name: "lodash", version: "4.17.20", id: "CVE-2021-23337", severity: "high" })];
     vi.mocked(scanLocal).mockResolvedValue(makeFixtureScanResult(matches) as ReturnType<typeof scanLocal> extends Promise<infer T> ? T : never);
-    vi.mocked(loadKev).mockResolvedValue(new Set(["CVE-2021-23337"]));
+    vi.mocked(loadExploited).mockResolvedValue(new Map([["CVE-2021-23337", { sources: ["cisa_kev" as const], dateAdded: "2021-02-15", euvdId: null }]]));
     vi.mocked(loadEuvdMapping).mockResolvedValue(new Map([["CVE-2021-23337", "EUVD-2021-23337"]]));
 
     const { handleScan } = await import("../tools/scan.js");
@@ -70,10 +72,10 @@ describe("handleScan", () => {
   });
 
   it("structuredContent has vulnerabilities, truncated, summary, cta fields", async () => {
-    const { scanLocal, loadKev, loadEuvdMapping } = await import("@ottersight/scanner");
+    const { scanLocal, loadExploited, loadEuvdMapping } = await import("@ottersight/scanner");
     const matches = [makeMatch({ name: "lodash", version: "4.17.20", id: "CVE-2021-23337", severity: "high" })];
     vi.mocked(scanLocal).mockResolvedValue(makeFixtureScanResult(matches) as ReturnType<typeof scanLocal> extends Promise<infer T> ? T : never);
-    vi.mocked(loadKev).mockResolvedValue(new Set(["CVE-2021-23337"]));
+    vi.mocked(loadExploited).mockResolvedValue(new Map([["CVE-2021-23337", { sources: ["cisa_kev" as const], dateAdded: "2021-02-15", euvdId: null }]]));
     vi.mocked(loadEuvdMapping).mockResolvedValue(new Map([["CVE-2021-23337", "EUVD-2021-23337"]]));
 
     const { handleScan } = await import("../tools/scan.js");
@@ -87,10 +89,10 @@ describe("handleScan", () => {
   });
 
   it("structuredContent does NOT have sbom or components (D-08)", async () => {
-    const { scanLocal, loadKev, loadEuvdMapping } = await import("@ottersight/scanner");
+    const { scanLocal, loadExploited, loadEuvdMapping } = await import("@ottersight/scanner");
     const matches = [makeMatch({ name: "lodash", version: "4.17.20", id: "CVE-2021-23337", severity: "high" })];
     vi.mocked(scanLocal).mockResolvedValue(makeFixtureScanResult(matches) as ReturnType<typeof scanLocal> extends Promise<infer T> ? T : never);
-    vi.mocked(loadKev).mockResolvedValue(new Set());
+    vi.mocked(loadExploited).mockResolvedValue(new Map());
     vi.mocked(loadEuvdMapping).mockResolvedValue(new Map());
 
     const { handleScan } = await import("../tools/scan.js");
@@ -101,10 +103,10 @@ describe("handleScan", () => {
   });
 
   it("structuredContent.cta equals OtterSight Cloud CTA (D-09)", async () => {
-    const { scanLocal, loadKev, loadEuvdMapping } = await import("@ottersight/scanner");
+    const { scanLocal, loadExploited, loadEuvdMapping } = await import("@ottersight/scanner");
     const matches = [makeMatch({ name: "lodash", version: "4.17.20", id: "CVE-2021-23337", severity: "high" })];
     vi.mocked(scanLocal).mockResolvedValue(makeFixtureScanResult(matches) as ReturnType<typeof scanLocal> extends Promise<infer T> ? T : never);
-    vi.mocked(loadKev).mockResolvedValue(new Set());
+    vi.mocked(loadExploited).mockResolvedValue(new Map());
     vi.mocked(loadEuvdMapping).mockResolvedValue(new Map());
 
     const { handleScan } = await import("../tools/scan.js");
@@ -114,7 +116,7 @@ describe("handleScan", () => {
   });
 
   it("D-06: truncates display to CRITICAL+HIGH when >50 vulns, but structuredContent has all", async () => {
-    const { scanLocal, loadKev, loadEuvdMapping } = await import("@ottersight/scanner");
+    const { scanLocal, loadExploited, loadEuvdMapping } = await import("@ottersight/scanner");
     // Create 60 vulns: 5 critical, 5 high, 30 medium, 20 low
     const matches: GrypeMatch[] = [
       ...Array.from({ length: 5 }, (_, i) =>
@@ -132,7 +134,7 @@ describe("handleScan", () => {
     ];
 
     vi.mocked(scanLocal).mockResolvedValue(makeFixtureScanResult(matches) as ReturnType<typeof scanLocal> extends Promise<infer T> ? T : never);
-    vi.mocked(loadKev).mockResolvedValue(new Set());
+    vi.mocked(loadExploited).mockResolvedValue(new Map());
     vi.mocked(loadEuvdMapping).mockResolvedValue(new Map());
 
     const { handleScan } = await import("../tools/scan.js");
@@ -153,12 +155,12 @@ describe("handleScan", () => {
   });
 
   it("D-03: fix suggestions appear in Markdown for vulns with fixVersion", async () => {
-    const { scanLocal, loadKev, loadEuvdMapping } = await import("@ottersight/scanner");
+    const { scanLocal, loadExploited, loadEuvdMapping } = await import("@ottersight/scanner");
     const matches = [
       makeMatch({ name: "lodash", version: "4.17.20", id: "CVE-2021-23337", severity: "high", fix: "4.17.21" }),
     ];
     vi.mocked(scanLocal).mockResolvedValue(makeFixtureScanResult(matches) as ReturnType<typeof scanLocal> extends Promise<infer T> ? T : never);
-    vi.mocked(loadKev).mockResolvedValue(new Set());
+    vi.mocked(loadExploited).mockResolvedValue(new Map());
     vi.mocked(loadEuvdMapping).mockResolvedValue(new Map());
 
     const { handleScan } = await import("../tools/scan.js");
