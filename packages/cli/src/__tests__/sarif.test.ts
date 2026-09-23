@@ -120,4 +120,10 @@ describe("renderSarif", () => {
     expect(result.properties.epss).toBe(0.21333);
     expect(run.properties.dataAttribution).toContain("ENISA");
   });
+
+  it("records a degraded known-exploited source on the run", () => {
+    const degraded = JSON.parse(renderSarif(vulns, "1.2.3", { exploitedSource: "cisa-fallback" }));
+    expect(degraded.runs[0].properties.exploitedSource).toBe("cisa-fallback");
+    expect(run.properties.exploitedSource).toBeUndefined();
+  });
 });

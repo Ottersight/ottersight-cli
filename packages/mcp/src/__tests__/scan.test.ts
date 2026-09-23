@@ -9,6 +9,7 @@ vi.mock("@ottersight/scanner", async (importOriginal) => {
     scanLocal: vi.fn(),
     loadExploited: vi.fn(),
     loadEuvdMapping: vi.fn(),
+    getExploitedSource: vi.fn(() => "euvd"),
   };
 });
 
@@ -169,5 +170,19 @@ describe("handleScan", () => {
     const text = (result.content[0] as { type: string; text: string }).text;
     expect(text).toContain("4.17.21");
     expect(text.toLowerCase()).toContain("fix");
+  });
+
+  it("tells the user when EUVD was unreachable (CISA fallback)", async () => {
+    const { scanLocal, loadExploited, loadEuvdMapping, getExploitedSource } = await import("@ottersight/scanner");
+    vi.mocked(scanLocal).mockResolvedValue(makeFixtureScanResult([]) as ReturnType<typeof scanLocal> extends Promise<infer T> ? T : never);
+    vi.mocked(loadExploited).mockResolvedValue(new Map());
+    vi.mocked(loadEuvdMapping).mockResolvedValue(new Map());
+    vi.mocked(getExploitedSource).mockReturnValue("cisa-fallback");
+
+    const { handleScan } = await import("../tools/scan.js");
+    const result = await handleScan({ path: "/tmp/test-project" });
+
+    expect(result.structuredContent.exploitedSource).toBe("cisa-fallback");
+    expect((result.content[0] as { type: string; text: string }).text).toContain("ENISA EUVD was unreachable");
   });
 });

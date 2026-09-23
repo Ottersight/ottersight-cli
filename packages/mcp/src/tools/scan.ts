@@ -1,5 +1,12 @@
 import path from "node:path";
-import { scanLocal, loadExploited, loadEuvdMapping, enrichVulnerabilities, DATA_ATTRIBUTION } from "@ottersight/scanner";
+import {
+  scanLocal,
+  loadExploited,
+  loadEuvdMapping,
+  enrichVulnerabilities,
+  getExploitedSource,
+  DATA_ATTRIBUTION,
+} from "@ottersight/scanner";
 import { renderMcpMarkdown } from "../render/markdown.js";
 import type { EnrichedVuln } from "@ottersight/scanner";
 
@@ -41,7 +48,14 @@ export async function handleScan(input: { path: string }) {
     ? sorted.filter((v) => ["critical", "high"].includes(v.severity.toLowerCase()))
     : sorted;
 
-  const text = renderMcpMarkdown(displayVulns, counts, truncated);
+  const exploitedSource = getExploitedSource();
+  const degraded =
+    exploitedSource === "euvd"
+      ? ""
+      : exploitedSource === "none"
+        ? "\n> Known-exploited data (EUVD, CISA KEV) could not be loaded; exploitation flags are missing.\n"
+        : "\n> ENISA EUVD was unreachable; known-exploited data may be incomplete (EU KEV missing or outdated).\n";
+  const text = renderMcpMarkdown(displayVulns, counts, truncated) + degraded;
 
   return {
     content: [{ type: "text" as const, text }],
@@ -51,6 +65,7 @@ export async function handleScan(input: { path: string }) {
       truncated,
       summary: counts,
       dataAttribution: DATA_ATTRIBUTION,
+      exploitedSource,
       cta: CTA,
     },
   };

@@ -20,11 +20,12 @@ export {
   loadEuvdMapping,
   lookupEuvd,
   loadExploited,
+  getExploitedSource,
   lookupEuvdRecord,
   parseEuvdDate,
   splitEuvdList,
 } from "./euvd.js";
-export type { ExploitedInfo, KevSource, EuvdRecord } from "./euvd.js";
+export type { ExploitedInfo, KevSource, EuvdRecord, ExploitedSource } from "./euvd.js";
 export {
   enrichVulnerabilities,
   resolveCveId,
