@@ -84,7 +84,7 @@ graph TB
     style Cloud fill:#f0f0f0,stroke:#999,stroke-dasharray: 5 5
 ```
 
-**How it works:** Both the CLI and the MCP server use the same scanner engine. The scanner orchestrates [Syft](https://github.com/anchore/syft) (SBOM) and [Grype](https://github.com/anchore/grype) (CVE matching), then enriches results with [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) data (actively exploited vulnerabilities), [EUVD](https://euvd.enisa.europa.eu/) mappings (EU NIS2/CRA compliance), and latest version lookups from package registries.
+**How it works:** Both the CLI and the MCP server use the same scanner engine. The scanner orchestrates [Syft](https://github.com/anchore/syft) (SBOM) and [Grype](https://github.com/anchore/grype) (CVE matching), then enriches results with [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) data (actively exploited vulnerabilities), [EUVD](https://euvd.enisa.europa.eu/) identifiers (ENISA's EU Vulnerability Database), and latest version lookups from package registries.
 
 The scanner (`packages/scanner/`) is the core engine — open source, published on npm as `@ottersight/scanner`, and also bundled into the CLI and MCP packages at build time. If you want to improve the scanning pipeline, that's where to look.
 
@@ -257,6 +257,17 @@ Improvements here automatically benefit both the CLI and MCP packages. See [CONT
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+## Data Sources
+
+| Source | Operator | Jurisdiction | Used for | Terms |
+|---|---|---|---|---|
+| [Grype vulnerability DB](https://github.com/anchore/grype) | Anchore (built from NVD, GitHub Advisory Database, distro feeds and others) | US | Matching packages to vulnerabilities | Upstream terms apply, e.g. GitHub Advisory Database CC-BY-4.0 |
+| [EUVD](https://euvd.enisa.europa.eu/) | ENISA | EU | EUVD identifiers | Reproduction authorised provided the source is acknowledged |
+| [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) | CISA, via the [cisagov/kev-data](https://github.com/cisagov/kev-data) GitHub mirror | US | Known exploited vulnerabilities | CC0 |
+| npm, PyPI, crates.io, Go proxy, Packagist | Registry operators | Mostly US | Latest version lookups | Public APIs |
+
+Vulnerability data: ENISA EU Vulnerability Database (EUVD), source acknowledged. OtterSight is not affiliated with or endorsed by ENISA.
 
 ## Security
 

@@ -1,6 +1,6 @@
 # OtterSight CLI
 
-Open-source Software Composition Analysis (SCA) scanner. Scans projects for vulnerable dependencies using Syft + Grype, enriched with EUVD, CISA KEV, and EPSS data.
+Open-source Software Composition Analysis (SCA) scanner. Scans projects for vulnerable dependencies using Syft + Grype, enriched with EUVD IDs and CISA KEV. (EPSS/CVSS are in the Grype output types but not yet surfaced in `EnrichedVuln`; see `tasks/todo.md` Phase 1.)
 
 > `AGENTS.md` is a symlink to this file. Edit `CLAUDE.md` only.
 
