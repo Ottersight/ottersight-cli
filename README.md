@@ -105,7 +105,16 @@ ottersight scan .
 docker run --rm -v $(pwd):/repo ghcr.io/ottersight/cli scan .
 ```
 
-Output: colored terminal table grouped by severity, summary line, optional `--output report.md` for Markdown, or `--format sarif` for GitHub Code Scanning.
+Output: colored terminal table grouped by severity, summary line, optional `--output report.md` for Markdown, `--format sarif` for GitHub Code Scanning, or `--format json` with every enriched field (EUVD ID, KEV sources, CVSS, EPSS, CVE alias).
+
+The exit code is 0 whenever the scan completes, even with findings. To fail a CI job, use `--fail-on`:
+
+```bash
+ottersight scan . --fail-on high   # exit 1 on any high or critical finding
+ottersight scan . --fail-on kev    # exit 1 on any known-exploited finding (EU or CISA KEV)
+```
+
+Findings suppressed with `--ignore` don't count. A scan that can't run (e.g. Syft/Grype missing or failing) also exits 1.
 
 ### `@ottersight/mcp` — for AI assistants
 
@@ -126,7 +135,7 @@ Then type `/ottersight-scan` in Claude Code. The skill self-bootstraps — it re
 | I want to... | Use |
 |---|---|
 | Scan my project from the terminal | `@ottersight/cli` |
-| Add scanning to a CI pipeline | `@ottersight/cli` (with `--quiet --output report.md` or `--format sarif`) |
+| Add scanning to a CI pipeline | `@ottersight/cli` (with `--quiet --fail-on high`, plus `--output report.md`, `--format sarif` or `--format json`) |
 | Scan without installing Syft/Grype | Docker image |
 | Scan from Claude Code / Claude Desktop | `@ottersight/mcp` |
 

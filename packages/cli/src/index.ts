@@ -1,5 +1,6 @@
 import { Command, Option } from "commander";
 import { scanCommand } from "./commands/scan.js";
+import { FAIL_ON_LEVELS, type FailOnLevel } from "./fail-on.js";
 
 // Injected at build time by tsup (see tsup.config.ts)
 declare const __OTTERSIGHT_VERSION__: string;
@@ -21,19 +22,23 @@ program
   .argument("<path>", "directory to scan (use . for current directory)")
   .addOption(
     new Option("-f, --format <format>", "stdout output format")
-      .choices(["table", "sarif"])
+      .choices(["table", "sarif", "json"])
       .default("table"),
   )
   .option("-o, --output <file>", "write Markdown report to file")
   .option("-i, --ignore <id>", "ignore a vulnerability by CVE/GHSA ID (repeatable)", collect, [])
   .option("-q, --quiet", "suppress progress spinners")
+  .addOption(
+    new Option("--fail-on <level>", "exit 1 if a finding is at or above this severity, or known exploited (kev)")
+      .choices([...FAIL_ON_LEVELS]),
+  )
   .option("--no-osv", "do not ask OSV.dev (Google, US) for CVE IDs of GHSA-only findings")
   .option("--eu-sources", "contact no US endpoints for enrichment: EUVD only (no CISA, no OSV), no Syft/Grype update checks")
   .addOption(
     new Option("--grype-db-url <url>", "Grype DB listing base URL, e.g. an EU mirror (Grype appends /v6/latest.json)")
       .env("OTTERSIGHT_GRYPE_DB_URL"),
   )
-  .action(async (scanPath: string, options: { format: "table" | "sarif"; output?: string; ignore: string[]; quiet?: boolean; osv: boolean; euSources?: boolean; grypeDbUrl?: string }) => {
+  .action(async (scanPath: string, options: { format: "table" | "sarif" | "json"; output?: string; ignore: string[]; quiet?: boolean; osv: boolean; euSources?: boolean; grypeDbUrl?: string; failOn?: FailOnLevel }) => {
     await scanCommand(scanPath, { ...options, version: __OTTERSIGHT_VERSION__ });
   });
 
