@@ -172,7 +172,8 @@ describe("loadExploited", () => {
     await loadExploited();
     await loadExploited();
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const euvdCalls = fetchMock.mock.calls.filter(([url]) => String(url).includes("euvdservices"));
+    expect(euvdCalls).toHaveLength(1);
 
     vi.unstubAllGlobals();
   });
@@ -353,10 +354,10 @@ describe("lookupEuvdRecord — unscored records and aliases", () => {
     vi.unstubAllGlobals();
   });
 
-  it("keeps a real EPSS of 0 on scored records", async () => {
+  it("treats EPSS 0 as unknown even on scored records (FIRST never publishes 0)", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(record({ baseScore: 5.3, baseScoreVersion: "3.1", epss: 0 })));
     const { lookupEuvdRecord } = await import("../euvd.js");
-    expect((await lookupEuvdRecord("EUVD-2026-1"))?.epss).toBe(0);
+    expect((await lookupEuvdRecord("EUVD-2026-1"))?.epss).toBeNull();
     vi.unstubAllGlobals();
   });
 
@@ -377,6 +378,49 @@ describe("lookupEuvdRecord — unscored records and aliases", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(res));
     const { lookupEuvdRecord } = await import("../euvd.js");
     expect(await lookupEuvdRecord("EUVD-2026-1")).toBeNull();
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("loadExploited — CISA cross-check of EUVD KEV entries", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  const dump = [
+    ...FILLER,
+    // Removed from CISA within an hour on 2026-08-21, still listed by EUVD
+    { cveId: "CVE-2026-69836", euvdId: "EUVD-2026-69836", dateAdded: "2026-08-21", sources: ["cisa_kev"] },
+    // In both catalogues according to EUVD, but gone from CISA → keep EU KEV only
+    { cveId: "CVE-2026-50000", euvdId: "EUVD-2026-50000", dateAdded: "2026-07-01", sources: ["cisa_kev", "eukev_kev"] },
+    { cveId: "CVE-2015-7501", euvdId: "EUVD-2022-3799", dateAdded: "2025-07-14", sources: ["eukev_kev"] },
+  ];
+  const cisa = { vulnerabilities: FILLER.map((f) => ({ cveID: f.cveId })) };
+  const route = (cisaResponse: unknown) =>
+    vi.fn(async (url: string) =>
+      url.includes("euvdservices") ? { ok: true, headers: jsonHeaders, json: async () => dump } : cisaResponse,
+    );
+
+  it("drops CISA-only entries that CISA has removed and strips cisa_kev from mixed ones", async () => {
+    vi.stubGlobal("fetch", route({ ok: true, json: async () => cisa }));
+    const { loadExploited } = await import("../euvd.js");
+    const result = await loadExploited();
+
+    expect(result.has("CVE-2026-69836")).toBe(false);
+    expect(result.get("CVE-2026-50000")?.sources).toEqual(["eukev_kev"]);
+    expect(result.get("CVE-2015-7501")?.sources).toEqual(["eukev_kev"]);
+    expect(result.get(FILLER[0].cveId)?.sources).toEqual(["cisa_kev"]);
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps EUVD data unchanged when the CISA catalogue is unavailable", async () => {
+    vi.stubGlobal("fetch", route({ ok: false, status: 503 }));
+    const { loadExploited, getExploitedSource } = await import("../euvd.js");
+    const result = await loadExploited();
+
+    expect(result.get("CVE-2026-69836")?.sources).toEqual(["cisa_kev"]);
+    expect(getExploitedSource()).toBe("euvd");
     vi.unstubAllGlobals();
   });
 });
