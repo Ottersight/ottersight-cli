@@ -1,4 +1,4 @@
-import type { EnrichedVuln } from "@ottersight/scanner";
+import { formatExploited, DATA_ATTRIBUTION, type EnrichedVuln } from "@ottersight/scanner";
 
 // SARIF 2.1.0 — consumed by GitHub Code Scanning, VS Code SARIF Viewer, etc.
 // https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html
@@ -37,8 +37,10 @@ function helpUri(id: string): string | undefined {
 
 function message(v: EnrichedVuln): string {
   const parts = [`${v.packageName}@${v.packageVersion} is affected by ${v.cveId} (${v.severity}).`];
-  if (v.inKev) parts.push("Listed in CISA KEV (known exploited).");
   if (v.euvdId) parts.push(`EUVD: ${v.euvdId}.`);
+  if (v.exploitedSources.length > 0) {
+    parts.push(`Known exploited (${formatExploited(v)}${v.exploitedSince ? `, since ${v.exploitedSince}` : ""}).`);
+  }
   parts.push(v.fixVersion ? `Fixed in ${v.fixVersion}.` : "No fix available.");
   return parts.join(" ");
 }
@@ -50,7 +52,8 @@ export function renderSarif(vulns: EnrichedVuln[], toolVersion: string): string 
     if (rules.has(v.cveId)) continue;
     const sev = v.severity.toLowerCase();
     const tags = ["security", "vulnerability", "dependency"];
-    if (v.inKev) tags.push("kev");
+    if (v.exploitedSources.length > 0) tags.push("kev");
+    if (v.exploitedSources.includes("eukev_kev")) tags.push("eu-kev");
     rules.set(v.cveId, {
       id: v.cveId,
       name: v.cveId,
@@ -86,6 +89,10 @@ export function renderSarif(vulns: EnrichedVuln[], toolVersion: string): string 
       fixVersion: v.fixVersion,
       euvdId: v.euvdId,
       inKev: v.inKev,
+      exploitedSources: v.exploitedSources,
+      exploitedSince: v.exploitedSince,
+      cvss: v.cvss,
+      epss: v.epss,
     },
   }));
 
@@ -103,6 +110,7 @@ export function renderSarif(vulns: EnrichedVuln[], toolVersion: string): string 
           },
         },
         results,
+        properties: { dataAttribution: DATA_ATTRIBUTION },
       },
     ],
   };

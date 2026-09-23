@@ -4,15 +4,15 @@ import ora from "ora";
 import chalk from "chalk";
 import {
   scanLocal,
-  loadKev,
+  loadExploited,
   loadEuvdMapping,
+  enrichVulnerabilities,
   type GrypeMatch,
 } from "@ottersight/scanner";
 import { checkDependencies } from "../check-deps.js";
-import { renderTerminalTable, renderSummaryLine } from "../render/terminal.js";
+import { renderTerminalTable, renderSummaryLine, renderAttribution } from "../render/terminal.js";
 import { renderMarkdown } from "../render/markdown.js";
 import { renderSarif } from "../render/sarif.js";
-import { enrichVulnerabilities } from "../enrich.js";
 import { filterIgnored } from "../ignore.js";
 
 interface ScanOptions {
@@ -61,18 +61,18 @@ export async function scanCommand(scanPath: string, options: ScanOptions): Promi
   const allMatches: GrypeMatch[] = scanResult.grype.matches ?? [];
   const matches = filterIgnored(allMatches, options.ignore ?? []);
 
-  // Step 2: Enrichment (KEV, EUVD — all optional/graceful degradation on network failure)
-  const enrichSpinner = quiet ? null : ora("Enriching with KEV and EUVD data...").start();
+  // Step 2: Enrichment (EUVD KEV dump incl. EU KEV, EUVD IDs — graceful degradation on network failure)
+  const enrichSpinner = quiet ? null : ora("Enriching with EUVD (EU + CISA KEV) data...").start();
 
-  const [kevSet, euvdMap] = await Promise.all([
-    loadKev(),
+  const [exploited, euvdMap] = await Promise.all([
+    loadExploited(),
     loadEuvdMapping(),
   ]);
 
   enrichSpinner?.succeed("Enrichment complete");
 
   // Build enriched vulns from GrypeMatch[] + KEV/EUVD data
-  const vulns = enrichVulnerabilities(matches, kevSet, euvdMap);
+  const vulns = enrichVulnerabilities(matches, exploited, euvdMap);
 
   // Count ignored findings with the same dedup key as enrichVulnerabilities()
   const kept = new Set(matches);
@@ -95,6 +95,7 @@ export async function scanCommand(scanPath: string, options: ScanOptions): Promi
       console.log(renderTerminalTable(vulns));
     }
     console.log(chalk.bold(renderSummaryLine(vulns)));
+    if (vulns.length > 0) console.log(chalk.gray(renderAttribution()));
 
     if (scanResult.commitSha) {
       console.log(chalk.gray(`Commit: ${scanResult.commitSha}`));

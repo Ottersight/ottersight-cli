@@ -1,4 +1,5 @@
 import { log } from "./logger.js";
+import { loadKev } from "./kev.js";
 
 const EUVD_MAPPING_URL = "https://euvdservices.enisa.europa.eu/api/dump/cve-euvd-mapping";
 const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -43,4 +44,176 @@ export async function loadEuvdMapping(): Promise<Map<string, string>> {
 export async function lookupEuvd(cveId: string): Promise<string | null> {
   const map = await loadEuvdMapping();
   return map.get(cveId) ?? null;
+}
+
+// ── Exploited vulnerabilities (EUVD KEV dump) ──
+//
+// ENISA's EUVD publishes one daily dump (07:00 UTC) that merges CISA KEV with the
+// EU KEV (confirmed exploitation against EU entities, reported by the EU CSIRTs
+// Network, ENISA or — since 11 Sep 2026 — CRA reports). It is a superset of CISA KEV.
+// The endpoint is live but not in ENISA's API docs; the CISA mirror stays as fallback.
+
+const EUVD_KEV_DUMP_URL = "https://euvdservices.enisa.europa.eu/api/kev/dump";
+const USER_AGENT = "OtterSight/1.0 (Security Scanner; +https://ottersight.com)";
+
+export type KevSource = "cisa_kev" | "eukev_kev";
+
+export interface ExploitedInfo {
+  sources: KevSource[];
+  /** ISO date (YYYY-MM-DD) the entry was first added to a KEV catalogue; null if unknown */
+  dateAdded: string | null;
+  euvdId: string | null;
+}
+
+interface EuvdKevEntry {
+  cveId?: string;
+  euvdId?: string;
+  dateAdded?: string;
+  sources?: string[];
+}
+
+let exploitedMap: Map<string, ExploitedInfo> | null = null;
+let exploitedLoadedAt = 0;
+
+function isKevSource(s: string): s is KevSource {
+  return s === "cisa_kev" || s === "eukev_kev";
+}
+
+async function fetchEuvdKevDump(): Promise<Map<string, ExploitedInfo>> {
+  const res = await fetch(EUVD_KEV_DUMP_URL, {
+    headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+  });
+  if (!res.ok) throw new Error(`EUVD KEV dump fetch failed: ${res.status}`);
+  const entries = (await res.json()) as EuvdKevEntry[];
+  if (!Array.isArray(entries)) throw new Error("EUVD KEV dump: unexpected response shape");
+
+  const map = new Map<string, ExploitedInfo>();
+  for (const e of entries) {
+    if (!e.cveId) continue;
+    const sources = (e.sources ?? []).filter(isKevSource);
+    if (sources.length === 0) continue;
+    map.set(e.cveId, {
+      sources,
+      dateAdded: /^\d{4}-\d{2}-\d{2}$/.test(e.dateAdded ?? "") ? e.dateAdded! : null,
+      euvdId: e.euvdId || null,
+    });
+  }
+  return map;
+}
+
+/**
+ * Known exploited vulnerabilities keyed by CVE ID: EUVD KEV dump (CISA KEV + EU KEV),
+ * falling back to the CISA KEV mirror, then to an empty map. Never throws.
+ */
+export async function loadExploited(): Promise<Map<string, ExploitedInfo>> {
+  if (exploitedMap && Date.now() - exploitedLoadedAt < MAX_AGE_MS) {
+    return exploitedMap;
+  }
+
+  try {
+    exploitedMap = await fetchEuvdKevDump();
+    exploitedLoadedAt = Date.now();
+    log.info("EUVD KEV dump loaded", { entries: exploitedMap.size });
+    return exploitedMap;
+  } catch (err) {
+    log.error("Failed to load EUVD KEV dump, falling back to CISA KEV", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  // Fallback: CISA only. Not cached, so the next call retries EUVD.
+  const cisa = await loadKev();
+  const fallback = new Map<string, ExploitedInfo>();
+  for (const cveId of cisa) {
+    fallback.set(cveId, { sources: ["cisa_kev"], dateAdded: null, euvdId: null });
+  }
+  // A stale EUVD map (from an earlier success) still beats CISA-only data.
+  return exploitedMap ?? fallback;
+}
+
+// ── EUVD record helpers ──
+
+/**
+ * EUVD dates look like "Sep 9, 2026, 1:00:31 PM" (US locale, no timezone).
+ * Returns the ISO date (YYYY-MM-DD), treating the value as UTC, or null.
+ */
+export function parseEuvdDate(s: string | null | undefined): string | null {
+  if (!s) return null;
+  const d = new Date(s.replace(/,\s(\d{1,2}:)/, " $1") + " UTC");
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
+/** EUVD `aliases` / `references` are newline-separated strings with a trailing newline. */
+export function splitEuvdList(s: string | null | undefined): string[] {
+  return (s ?? "").split("\n").map((x) => x.trim()).filter(Boolean);
+}
+
+// ── Single EUVD record ──
+
+const EUVD_RECORD_URL = "https://euvdservices.enisa.europa.eu/api/enisaid";
+
+export interface EuvdRecord {
+  id: string;
+  description: string | null;
+  datePublished: string | null;
+  dateUpdated: string | null;
+  exploitedSince: string | null;
+  /** CVSS base score as assigned by the CNA (not NVD); null when EUVD reports 0.0 */
+  baseScore: number | null;
+  baseScoreVersion: string | null;
+  baseScoreVector: string | null;
+  /** FIRST EPSS as a 0–1 probability (EUVD publishes it ×100) */
+  epss: number | null;
+  aliases: string[];
+  references: string[];
+  assigner: string | null;
+}
+
+interface RawEuvdRecord {
+  id?: string;
+  description?: string;
+  datePublished?: string;
+  dateUpdated?: string;
+  exploitedSince?: string;
+  baseScore?: number;
+  baseScoreVersion?: string;
+  baseScoreVector?: string;
+  epss?: number;
+  aliases?: string;
+  references?: string;
+  assigner?: string;
+}
+
+/**
+ * Fetch one EUVD record by EUVD ID. Returns null when unknown (EUVD answers 204 with an
+ * empty body) or on any network/parse error. Never throws.
+ */
+export async function lookupEuvdRecord(euvdId: string): Promise<EuvdRecord | null> {
+  try {
+    const res = await fetch(`${EUVD_RECORD_URL}?id=${encodeURIComponent(euvdId)}`, {
+      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+    });
+    if (res.status === 204 || !res.ok) return null;
+    const body = await res.text();
+    if (!body.trim()) return null;
+    const r = JSON.parse(body) as RawEuvdRecord;
+    if (!r.id) return null;
+    return {
+      id: r.id,
+      description: r.description?.trim() || null,
+      datePublished: parseEuvdDate(r.datePublished),
+      dateUpdated: parseEuvdDate(r.dateUpdated),
+      exploitedSince: parseEuvdDate(r.exploitedSince),
+      baseScore: typeof r.baseScore === "number" && r.baseScore > 0 ? r.baseScore : null,
+      baseScoreVersion: r.baseScoreVersion || null,
+      baseScoreVector: r.baseScoreVector || null,
+      epss: typeof r.epss === "number" ? Math.round(r.epss * 1000) / 100000 : null,
+      aliases: splitEuvdList(r.aliases),
+      references: splitEuvdList(r.references),
+      assigner: r.assigner?.trim() || null,
+    };
+  } catch (err) {
+    log.error("EUVD record lookup failed", { euvdId, error: err instanceof Error ? err.message : String(err) });
+    return null;
+  }
 }
