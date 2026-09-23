@@ -3,6 +3,7 @@ import {
   scanLocal,
   loadExploited,
   loadEuvdMapping,
+  loadCveAliases,
   enrichVulnerabilities,
   getExploitedSource,
   DATA_ATTRIBUTION,
@@ -22,11 +23,10 @@ export async function handleScan(input: { path: string }) {
     loadEuvdMapping(),
   ]);
 
-  const enriched = enrichVulnerabilities(
-    scanResult.grype.matches ?? [],
-    exploited,
-    euvdMap,
-  );
+  const matches = scanResult.grype.matches ?? [];
+  // OTTERSIGHT_NO_OSV=1 keeps GHSA-only findings off OSV.dev (Google, US)
+  const cveAliases = process.env.OTTERSIGHT_NO_OSV === "1" ? undefined : await loadCveAliases(matches);
+  const enriched = enrichVulnerabilities(matches, exploited, euvdMap, cveAliases);
 
   // Sort by severity
   const sorted = [...enriched].sort(

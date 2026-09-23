@@ -216,6 +216,8 @@ To suppress individual vulnerabilities (accepted risk, false positive), use `--i
 ottersight scan . --ignore CVE-2021-23337 --ignore GHSA-29mw-wpgm-hmr9
 ```
 
+Some findings only carry a GitHub advisory ID (GHSA) and no CVE, so EUVD and KEV data can't be matched. For those, OtterSight asks [OSV.dev](https://osv.dev) for the CVE alias. OSV.dev is operated by Google (US). To keep these lookups off, use `--no-osv` (CLI) or set `OTTERSIGHT_NO_OSV=1` (MCP server).
+
 ## OtterSight Cloud
 
 > **Coming soon.** [OtterSight Cloud](https://ottersight.com) will be the hosted service built on this scanner engine.
@@ -265,6 +267,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 | [EUVD](https://euvd.enisa.europa.eu/) | ENISA | EU | EUVD identifiers, records, and known exploitation (EU KEV + CISA KEV via `/api/kev/dump`) | Reproduction authorised provided the source is acknowledged |
 | [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) | CISA (included in EUVD's KEV data; [cisagov/kev-data](https://github.com/cisagov/kev-data) GitHub mirror as fallback) | US | Known exploited vulnerabilities | CC0 |
 | [EPSS](https://www.first.org/epss/) | FIRST (via the Grype DB) | US | Exploit probability | FIRST terms, attribution |
+| [OSV.dev](https://osv.dev) | Google | US | CVE aliases for findings that only have a GHSA ID (off with `--no-osv` / `OTTERSIGHT_NO_OSV=1`) | [OSV terms](https://google.github.io/osv.dev/faq/); GitHub Advisory Database CC-BY-4.0 |
 | npm, PyPI, crates.io, Go proxy, Packagist | Registry operators | Mostly US | Latest version lookups | Public APIs |
 
 Vulnerability data: ENISA EU Vulnerability Database (EUVD), source acknowledged. OtterSight is not affiliated with or endorsed by ENISA.
