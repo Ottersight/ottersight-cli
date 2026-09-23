@@ -120,8 +120,9 @@ Scanner is the shared library. CLI and MCP are consumers with different output t
 packages/
 ├── scanner/src/
 │   ├── scan.ts          — Runs Syft + Grype via execFile(), returns ScanResult
-│   ├── kev.ts           — CISA KEV lookup (GitHub mirror, 24h cache)
-│   ├── euvd.ts          — ENISA EUVD mapping (CSV dump, 24h cache)
+│   ├── kev.ts           — CISA KEV lookup (GitHub mirror, 24h cache) — fallback only
+│   ├── euvd.ts          — ENISA EUVD: CVE→EUVD mapping, KEV dump (EU + CISA KEV), record lookup (24h caches)
+│   ├── enrich.ts        — GrypeMatch → EnrichedVuln (joins EUVD KEV/IDs, CVSS, EPSS, dedup) + formatters
 │   ├── registries.ts    — npm/PyPI/crates.io/Go/Packagist version lookups
 │   ├── logger.ts        — Zero-dep structured JSON logging (ECS format)
 │   ├── types.ts         — All shared type contracts
@@ -129,14 +130,13 @@ packages/
 ├── cli/src/
 │   ├── index.ts         — Commander.js entry point (#!/usr/bin/env node via tsup banner)
 │   ├── commands/scan.ts — Scan orchestration (deps check → scan → enrich → render)
-│   ├── enrich.ts        — GrypeMatch → EnrichedVuln (joins KEV/EUVD, dedup)
 │   ├── check-deps.ts    — Verifies syft/grype on PATH, prints install instructions
 │   └── render/
 │       ├── terminal.ts  — Colored severity table (chalk + cli-table3)
 │       └── markdown.ts  — GitHub-style MD with shields.io badge + collapsible details
 └── mcp/src/
     ├── index.ts         — MCP server entry, registerTool() with zod schema
-    └── enrich.ts        — Copied from CLI (avoids circular workspace dep)
+    └── tools/           — scan, check-kev, lookup-euvd (enrichment imported from scanner)
 ```
 
 ## Commands
@@ -145,7 +145,7 @@ packages/
 pnpm install              # Install all dependencies
 pnpm build                # Build scanner first, then CLI (order matters)
 pnpm test                 # Run all tests (vitest)
-pnpm lint                 # Typecheck all packages
+pnpm lint                 # NOTE: no package defines a lint script yet — run `npx tsc --noEmit -p .` per package
 
 # Package-specific
 pnpm --filter @ottersight/scanner build
@@ -163,12 +163,12 @@ docker run --rm -v $(pwd):/repo ottersight/cli scan /repo
 
 ## Build Order
 
-Scanner MUST be built before CLI. CLI imports `@ottersight/scanner` and needs `dist/index.d.ts` for TypeScript resolution. The MCP package copies `enrich.ts` inline to avoid this dependency.
+Scanner MUST be built before CLI. CLI imports `@ottersight/scanner` and needs `dist/index.d.ts` for TypeScript resolution. MCP imports the shared enrichment from `@ottersight/scanner` too, so build the scanner before MCP as well.
 
 ## Key Conventions
 
 - **Graceful degradation:** KEV, EUVD, and registry lookups never throw. Network failures return empty data. The scan still completes.
-- **Module-level caches:** `kev.ts` and `euvd.ts` use module-level `Set`/`Map` with 24h TTL. This means `vi.resetModules()` is required per test.
+- **Module-level caches:** `kev.ts` and `euvd.ts` use module-level `Set`/`Map` with 24h TTL (EUVD mapping, EUVD KEV dump). This means `vi.resetModules()` is required per test.
 - **Dedup by tuple:** Vulnerabilities are deduplicated by `(packageName, packageVersion, cveId)` in `enrich.ts`. Same advisory across multiple manifests counts once.
 - **CVE resolution:** Grype sometimes returns GHSA IDs instead of CVEs. `resolveCveId()` checks `relatedVulnerabilities` for a CVE- prefix to enable EUVD/KEV enrichment.
 - **Markdown emoji:** Uses unicode escape sequences (`\uD83D\uDD34`) not chalk. Guarantees zero ANSI contamination in Markdown output.
@@ -228,8 +228,9 @@ Multi-stage Chainguard build (Dockerfile):
 ```
 Grype matches
     → resolveCveId() (GHSA → CVE lookup via relatedVulnerabilities)
-    → join with KEV Set (isKnownExploited)
-    → join with EUVD Map (euvdId)
+    → join with EUVD KEV Map (loadExploited: exploitedSources eukev_kev/cisa_kev, exploitedSince)
+    → join with EUVD Map (euvdId; falls back to the KEV dump's EUVD ID)
+    → CVSS (newest version, advisory then related CVE) + EPSS from the Grype match
     → dedup by (package, version, cveId)
     → EnrichedVuln[]
 ```
@@ -244,8 +245,10 @@ Version lookups implemented for: npm, PyPI, crates.io, Go proxy, Packagist.
 
 | Source | URL | Cache | Fallback |
 |--------|-----|-------|----------|
-| CISA KEV | GitHub mirror (cisagov/kev-data) | 24h in-memory | Empty Set |
-| EUVD | ENISA CSV dump API | 24h in-memory | Empty Map |
+| EUVD KEV (EU + CISA KEV) | ENISA `/api/kev/dump` (undocumented) | 24h in-memory | CISA mirror → empty Map |
+| EUVD mapping | ENISA `/api/dump/cve-euvd-mapping` CSV | 24h in-memory | Empty Map |
+| EUVD record | ENISA `/api/enisaid?id=` (204 = unknown) | None | null |
+| CISA KEV | GitHub mirror (cisagov/kev-data) | 24h in-memory | Empty Set (fallback only) |
 | npm | registry.npmjs.org | None | null version |
 | PyPI | pypi.org/pypi/{name}/json | None | null version |
 | crates.io | crates.io/api/v1/crates/{name} | None | null version |
@@ -258,7 +261,7 @@ Version lookups implemented for: npm, PyPI, crates.io, Go proxy, Packagist.
 - `disable-model-invocation: true` — user-triggered only, never auto-invoked by the model
 - No arguments — always scans current working directory
 - Returns structured content (all vulns in JSON) + truncated Markdown summary
-- `enrich.ts` copied inline from CLI to avoid circular workspace dependency
+- Enrichment comes from `@ottersight/scanner` (`enrichVulnerabilities`, `formatExploited`, `DATA_ATTRIBUTION`)
 
 ## Contributing
 

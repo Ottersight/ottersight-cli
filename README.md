@@ -28,16 +28,15 @@ mkdir -p ~/.claude/skills/ottersight-scan && curl -sSL \
 ```
 $ ottersight scan .
 
-Scanning /my-project...
-
-CRITICAL (2)
-  lodash    4.17.20  CVE-2021-23337  CRITICAL  EUVD-2021-12345  KEV ⚡  Fix: 4.17.21
-  node      18.12.0  CVE-2023-30581  CRITICAL  —                —       Fix: 18.20.4
-
-HIGH (5)
-  ...
-
-Summary: 127 components · 7 vulnerabilities · 2 actively exploited (KEV) · 3 EUVD entries
+┌─────────────────────┬─────────┬────────────────┬─────────────────────┬──────────┬──────┬───────┬───────────┬─────────┐
+│ Package             │ Version │ EUVD           │ Advisory            │ Severity │ CVSS │ EPSS  │ Exploited │ Fix     │
+├─────────────────────┼─────────┼────────────────┼─────────────────────┼──────────┼──────┼───────┼───────────┼─────────┤
+│ commons-collections │ 3.2.1   │ EUVD-2022-3799 │ GHSA-fjq5-5j5f-mvxh │ CRITICAL │ 9.8  │ 70.1% │ ⚠ EU KEV  │ 3.2.2   │
+│ lodash              │ 4.17.20 │ EUVD-2021-0912 │ GHSA-35jh-r3h4-6jhm │ HIGH     │ 7.2  │ 21.3% │           │ 4.17.21 │
+│ ...                 │         │                │                     │          │      │       │           │         │
+└─────────────────────┴─────────┴────────────────┴─────────────────────┴──────────┴──────┴───────┴───────────┴─────────┘
+7 vulnerabilities found (1 critical, 3 high, 3 medium) · 1 known exploited (1 only in EU KEV)
+Vulnerability data: ENISA EU Vulnerability Database (EUVD), source acknowledged · Anchore Grype DB · CISA KEV · FIRST EPSS
 ```
 
 ## Architecture
@@ -84,7 +83,7 @@ graph TB
     style Cloud fill:#f0f0f0,stroke:#999,stroke-dasharray: 5 5
 ```
 
-**How it works:** Both the CLI and the MCP server use the same scanner engine. The scanner orchestrates [Syft](https://github.com/anchore/syft) (SBOM) and [Grype](https://github.com/anchore/grype) (CVE matching), then enriches results with [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) data (actively exploited vulnerabilities), [EUVD](https://euvd.enisa.europa.eu/) identifiers (ENISA's EU Vulnerability Database), and latest version lookups from package registries.
+**How it works:** Both the CLI and the MCP server use the same scanner engine. The scanner orchestrates [Syft](https://github.com/anchore/syft) (SBOM) and [Grype](https://github.com/anchore/grype) (CVE matching), then enriches results with ENISA's [EU Vulnerability Database (EUVD)](https://euvd.enisa.europa.eu/): EUVD identifiers and known exploitation from EUVD's KEV data, which combines the **EU KEV** (confirmed exploitation against EU entities) with [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog). CVSS and EPSS come from the Grype match, and latest version lookups from package registries.
 
 The scanner (`packages/scanner/`) is the core engine — open source, published on npm as `@ottersight/scanner`, and also bundled into the CLI and MCP packages at build time. If you want to improve the scanning pipeline, that's where to look.
 
@@ -191,8 +190,8 @@ claude mcp add --scope user ottersight -- npx -y @ottersight/mcp
 | Tool | Description |
 |------|-------------|
 | `scan` | Scan a directory for CVEs (Syft + Grype + KEV + EUVD enrichment) |
-| `check-kev` | Check if a CVE is in the CISA Known Exploited Vulnerabilities catalog |
-| `lookup-euvd` | Look up the EU Vulnerability Database ID for a given CVE |
+| `check-kev` | Check if a CVE is known exploited (EU KEV and CISA KEV, via ENISA EUVD) and since when |
+| `lookup-euvd` | Look up the EUVD entry for a CVE: EUVD ID, CVSS, EPSS, exploitation date, aliases |
 
 ## Managing False Positives
 
@@ -263,8 +262,9 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 | Source | Operator | Jurisdiction | Used for | Terms |
 |---|---|---|---|---|
 | [Grype vulnerability DB](https://github.com/anchore/grype) | Anchore (built from NVD, GitHub Advisory Database, distro feeds and others) | US | Matching packages to vulnerabilities | Upstream terms apply, e.g. GitHub Advisory Database CC-BY-4.0 |
-| [EUVD](https://euvd.enisa.europa.eu/) | ENISA | EU | EUVD identifiers | Reproduction authorised provided the source is acknowledged |
-| [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) | CISA, via the [cisagov/kev-data](https://github.com/cisagov/kev-data) GitHub mirror | US | Known exploited vulnerabilities | CC0 |
+| [EUVD](https://euvd.enisa.europa.eu/) | ENISA | EU | EUVD identifiers, records, and known exploitation (EU KEV + CISA KEV via `/api/kev/dump`) | Reproduction authorised provided the source is acknowledged |
+| [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) | CISA (included in EUVD's KEV data; [cisagov/kev-data](https://github.com/cisagov/kev-data) GitHub mirror as fallback) | US | Known exploited vulnerabilities | CC0 |
+| [EPSS](https://www.first.org/epss/) | FIRST (via the Grype DB) | US | Exploit probability | FIRST terms, attribution |
 | npm, PyPI, crates.io, Go proxy, Packagist | Registry operators | Mostly US | Latest version lookups | Public APIs |
 
 Vulnerability data: ENISA EU Vulnerability Database (EUVD), source acknowledged. OtterSight is not affiliated with or endorsed by ENISA.
