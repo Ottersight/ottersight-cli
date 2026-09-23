@@ -1,6 +1,6 @@
 # EUVD-First & Digital Sovereignty — Plan
 
-**Created:** 2026-09-23 · **Status:** Phase 0 done · Phase 1 done (except depwatch follow-up) · Phase 2 next
+**Created:** 2026-09-23 · **Status:** Phase 0 + 1 done, released as v0.2.0 · Phase 2 next
 **Research:** [`tasks/euvd-sovereignty/RESEARCH.md`](euvd-sovereignty/RESEARCH.md) (GSD phase-research format)
 **Goal:** EUVD becomes OtterSight's primary enrichment and exploitation source; the runtime can run without US endpoints; every claim is verifiable.
 
@@ -29,7 +29,7 @@ Why first: research found claims that are no longer true or are legally risky.
 - [x] MCP: scan output includes new fields; `check-kev` tool reports sources (EU/CISA); `lookup-euvd` returns EUVD score/EPSS/references via `enisaid`
 - [x] README: data sources table with operator + jurisdiction + licence/attribution
 - [x] Tests per Validation Architecture in RESEARCH.md; live run on fixture repo (lodash 4.17.20, commons-collections 3.2.1 → must show EU KEV)
-- [ ] depwatch dashboard: verify the API worker gets the new fields via `@ottersight/scanner` (separate PR)
+- [x] depwatch dashboard: worker switched to `loadExploited()` (depwatch PR #4) · [ ] store `exploited_sources`/`exploited_since` (additive migration) for an "EU KEV" badge
 
 ## Phase 2 — Sovereign runtime mode
 
@@ -75,4 +75,6 @@ Why first: research found claims that are no longer true or are legally risky.
 - Tests: 92/92 (scanner 46, cli 31, mcp 15); `tsc --noEmit` clean in all three packages; EUVD date tests pass under `TZ=Europe/Berlin`.
 - Live run on fixture (lodash 4.17.20 + commons-collections 3.2.1): commons-collections CVE-2015-7501 flagged "⚠ EU KEV" — the previous CLI reported nothing for it.
 - Found: `pnpm lint` is a no-op (no package has a lint script) — CLAUDE.md corrected; adding real lint scripts is a separate task.
-- Open: depwatch API worker still uses `loadKev()` (CISA only) — switch to `loadExploited()` in a depwatch PR.
+- Released **v0.2.0** (scanner, cli, mcp on npm; GHCR image; GitHub Release) after a local Docker build + fixture scan.
+- depwatch PR #4: worker uses `loadExploited()`, scanner ^0.2.0.
+- Process slip: PR #12 was stacked on #11; merging #11 with `--delete-branch` auto-closed #12 and it could not be reopened → replaced by #13 (see tasks/lessons.md).
