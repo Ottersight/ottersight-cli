@@ -1,6 +1,6 @@
 # EUVD-First & Digital Sovereignty — Plan
 
-**Created:** 2026-09-23 · **Status:** Phase 0 in progress
+**Created:** 2026-09-23 · **Status:** Phase 0 done · Phase 1 next
 **Research:** [`tasks/euvd-sovereignty/RESEARCH.md`](euvd-sovereignty/RESEARCH.md) (GSD phase-research format)
 **Goal:** EUVD becomes OtterSight's primary enrichment and exploitation source; the runtime can run without US endpoints; every claim is verifiable.
 
@@ -12,10 +12,10 @@ GSD mapping: each phase below is meant to become one GSD phase (`/gsd-phase` add
 
 Why first: research found claims that are no longer true or are legally risky.
 
-- [ ] Blog `2026-03-23-euvd-explained`: remove "the only SCA scanner that directly integrates EUVD" (Holm Security, CIRCL Vulnerability-Lookup already ingest EUVD; Dependency-Track #4863 / Trivy #8958 in progress)
-- [ ] Homepage (depwatch PR #3), feature F03 "CVSS + EPSS + CISA KEV" is labelled "CLI · Dashboard" — CLI does **not** output CVSS/EPSS today → relabel "Dashboard" until Phase 1 ships
-- [ ] "CRA-ready" → "built for CRA Annex I Part II workflows" (or keep "CRA-ready" only with the CRA section's disclaimer) — never "CRA compliant", "powered by ENISA", no ENISA/EU logo
-- [x] Add source credit "Vulnerability data: ENISA EUVD (source acknowledged)" to README (+ Data Sources table) · [ ] website
+- [x] Blog `2026-03-23-euvd-explained`: remove "the only SCA scanner that directly integrates EUVD" (Holm Security, CIRCL Vulnerability-Lookup already ingest EUVD; Dependency-Track #4863 / Trivy #8958 in progress)
+- [x] Homepage (depwatch PR #3), feature F03 "CVSS + EPSS + CISA KEV" is labelled "CLI · Dashboard" — CLI does **not** output CVSS/EPSS today → relabel "Dashboard" until Phase 1 ships
+- [x] "CRA-ready" → "built for CRA Annex I Part II workflows" (or keep "CRA-ready" only with the CRA section's disclaimer) — never "CRA compliant", "powered by ENISA", no ENISA/EU logo
+- [x] Add source credit "Vulnerability data: ENISA EUVD (source acknowledged)" to README (+ Data Sources table) · [x] website footer
 - [x] Update CLAUDE.md: CLI does not surface EPSS today ("enriched with … EPSS" is only true for the dashboard)
 
 ## Phase 1 — EUVD-first enrichment (scanner, CLI, MCP)
@@ -62,4 +62,7 @@ Why first: research found claims that are no longer true or are legally risky.
 
 ## Review
 
-_(fill in after each phase: what shipped, test results, deviations)_
+### Phase 0 (2026-09-23)
+- ottersight-cli `ed40b39`: README data-sources table + ENISA credit, "NIS2/CRA compliance" wording removed, CLAUDE.md EPSS note.
+- depwatch `c8eb057` (PR #3): blog claim/date/timeline fixes (+ `updatedDate`, correction note), F03 → "Dashboard", CRA-ready subline → Annex I Part II, ENISA credit + non-endorsement in footer. `astro check` 0 errors.
+- Deviation: kept the "CRA-ready" label (design-system trust signal) but made the subline precise instead of renaming it.
