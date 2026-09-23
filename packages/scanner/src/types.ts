@@ -81,6 +81,8 @@ export interface EnrichedVuln {
   packageName: string;
   packageVersion: string;
   cveId: string;
+  /** CVE used for EUVD/KEV enrichment when `cveId` is not a CVE (Grype related record, else OSV alias); null if none */
+  aliasCveId?: string | null;
   severity: string;
   euvdId: string | null;
   /** @deprecated Use `exploitedSources`. True when listed in any KEV catalogue (CISA or EU). */

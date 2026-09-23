@@ -244,3 +244,36 @@ describe("enrichVulnerabilities", () => {
     });
   });
 });
+
+describe("enrichVulnerabilities with OSV aliases", () => {
+  const ghsa = makeMatch({ name: "pkg", version: "1.0.0", id: "GHSA-aaaa-bbbb-cccc" });
+
+  it("uses the OSV CVE for EUVD + KEV when Grype has none", () => {
+    const exploited = new Map<string, ExploitedInfo>([
+      ["CVE-2024-0001", { sources: ["eukev_kev"], dateAdded: "2025-01-02", euvdId: null }],
+    ]);
+    const [v] = enrichVulnerabilities([ghsa], exploited, new Map([["CVE-2024-0001", "EUVD-2024-0001"]]),
+      new Map([["GHSA-aaaa-bbbb-cccc", ["CVE-2024-0001"]]]));
+    expect(v).toMatchObject({
+      cveId: "GHSA-aaaa-bbbb-cccc", aliasCveId: "CVE-2024-0001", euvdId: "EUVD-2024-0001",
+      exploitedSources: ["eukev_kev"], exploitedSince: "2025-01-02",
+    });
+  });
+
+  it("with several CVE aliases prefers a known-exploited one, then one in the EUVD mapping", () => {
+    const aliases = new Map([["GHSA-aaaa-bbbb-cccc", ["CVE-2024-0001", "CVE-2024-0002", "CVE-2024-0003"]]]);
+    const euvd = new Map([["CVE-2024-0002", "EUVD-2"], ["CVE-2024-0003", "EUVD-3"]]);
+    expect(enrichVulnerabilities([ghsa], noKev(), euvd, aliases)[0].aliasCveId).toBe("CVE-2024-0002");
+
+    const kev = new Map<string, ExploitedInfo>([["CVE-2024-0003", { sources: ["cisa_kev"], dateAdded: null, euvdId: null }]]);
+    expect(enrichVulnerabilities([ghsa], kev, euvd, aliases)[0].aliasCveId).toBe("CVE-2024-0003");
+  });
+
+  it("Grype's related CVE wins over OSV; no aliases leaves the finding unenriched", () => {
+    const related = makeMatch({ name: "pkg", version: "1.0.0", id: "GHSA-aaaa-bbbb-cccc",
+      related: [{ id: "CVE-2021-23337", severity: "high" }] });
+    const aliases = new Map([["GHSA-aaaa-bbbb-cccc", ["CVE-2099-0001"]]]);
+    expect(enrichVulnerabilities([related], noKev(), new Map(), aliases)[0].aliasCveId).toBe("CVE-2021-23337");
+    expect(enrichVulnerabilities([ghsa], noKev(), new Map())[0]).toMatchObject({ aliasCveId: null, euvdId: null });
+  });
+});

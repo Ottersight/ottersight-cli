@@ -91,6 +91,7 @@ export function renderSarif(
       packageVersion: v.packageVersion,
       severity: v.severity,
       fixVersion: v.fixVersion,
+      aliasCveId: v.aliasCveId ?? null,
       euvdId: v.euvdId,
       inKev: v.inKev,
       exploitedSources: v.exploitedSources,

@@ -27,7 +27,8 @@ program
   .option("-o, --output <file>", "write Markdown report to file")
   .option("-i, --ignore <id>", "ignore a vulnerability by CVE/GHSA ID (repeatable)", collect, [])
   .option("-q, --quiet", "suppress progress spinners")
-  .action(async (scanPath: string, options: { format: "table" | "sarif"; output?: string; ignore: string[]; quiet?: boolean }) => {
+  .option("--no-osv", "do not ask OSV.dev (Google, US) for CVE IDs of GHSA-only findings")
+  .action(async (scanPath: string, options: { format: "table" | "sarif"; output?: string; ignore: string[]; quiet?: boolean; osv: boolean }) => {
     await scanCommand(scanPath, { ...options, version: __OTTERSIGHT_VERSION__ });
   });
 

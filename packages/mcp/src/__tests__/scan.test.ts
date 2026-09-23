@@ -9,6 +9,7 @@ vi.mock("@ottersight/scanner", async (importOriginal) => {
     scanLocal: vi.fn(),
     loadExploited: vi.fn(),
     loadEuvdMapping: vi.fn(),
+    loadCveAliases: vi.fn(async () => new Map()),
     getExploitedSource: vi.fn(() => "euvd"),
   };
 });
@@ -184,5 +185,28 @@ describe("handleScan", () => {
 
     expect(result.structuredContent.exploitedSource).toBe("cisa-fallback");
     expect((result.content[0] as { type: string; text: string }).text).toContain("ENISA EUVD was unreachable");
+  });
+
+  it("resolves GHSA-only findings via OSV aliases; OTTERSIGHT_NO_OSV=1 skips OSV", async () => {
+    const { scanLocal, loadExploited, loadEuvdMapping, loadCveAliases } = await import("@ottersight/scanner");
+    const matches = [makeMatch({ name: "pkg", version: "1.0.0", id: "GHSA-aaaa-bbbb-cccc", severity: "high" })];
+    vi.mocked(scanLocal).mockResolvedValue(makeFixtureScanResult(matches) as ReturnType<typeof scanLocal> extends Promise<infer T> ? T : never);
+    vi.mocked(loadExploited).mockResolvedValue(new Map([["CVE-2024-0001", { sources: ["eukev_kev" as const], dateAdded: null, euvdId: null }]]));
+    vi.mocked(loadEuvdMapping).mockResolvedValue(new Map([["CVE-2024-0001", "EUVD-2024-0001"]]));
+    vi.mocked(loadCveAliases).mockResolvedValue(new Map([["GHSA-aaaa-bbbb-cccc", ["CVE-2024-0001"]]]));
+
+    const { handleScan } = await import("../tools/scan.js");
+    const [v] = (await handleScan({ path: "/tmp/test-project" })).structuredContent.vulnerabilities;
+    expect(v).toMatchObject({ aliasCveId: "CVE-2024-0001", euvdId: "EUVD-2024-0001", exploitedSources: ["eukev_kev"] });
+
+    vi.stubEnv("OTTERSIGHT_NO_OSV", "1");
+    try {
+      vi.mocked(loadCveAliases).mockClear();
+      const [off] = (await handleScan({ path: "/tmp/test-project" })).structuredContent.vulnerabilities;
+      expect(loadCveAliases).not.toHaveBeenCalled();
+      expect(off).toMatchObject({ aliasCveId: null, euvdId: null, exploitedSources: [] });
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

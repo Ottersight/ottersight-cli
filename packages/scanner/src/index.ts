@@ -33,6 +33,7 @@ export {
   formatEpss,
   DATA_ATTRIBUTION,
 } from "./enrich.js";
+export { loadCveAliases } from "./osv.js";
 export { lookupLatestVersions } from "./registries.js";
 
 // Logger (exposed for consumers who want structured logging)

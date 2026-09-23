@@ -39,10 +39,25 @@ function pickEpss(m: GrypeMatch): number | null {
   return scores.length > 0 ? Math.max(...scores) : null;
 }
 
+// OSV can list several CVEs for one advisory: prefer one that is known exploited, then one EUVD knows.
+function pickAlias(
+  aliases: string[] | undefined,
+  exploited: Map<string, ExploitedInfo>,
+  euvdMap: Map<string, string>,
+): string | undefined {
+  if (!aliases?.length) return undefined;
+  return aliases.find((c) => exploited.has(c)) ?? aliases.find((c) => euvdMap.has(c)) ?? aliases[0];
+}
+
+/**
+ * @param cveAliases advisory ID → CVE aliases (from `loadCveAliases()`), used when Grype reports
+ *   a finding without any CVE. Optional: without it such findings stay unenriched.
+ */
 export function enrichVulnerabilities(
   matches: GrypeMatch[],
   exploited: Map<string, ExploitedInfo>,
   euvdMap: Map<string, string>,
+  cveAliases?: Map<string, string[]>,
 ): EnrichedVuln[] {
   // Dedup: same package + version + vuln ID can appear multiple times when
   // Grype scans several manifest/lockfile occurrences of the same package.
@@ -61,12 +76,16 @@ export function enrichVulnerabilities(
       continue;
     }
 
-    const cveId = resolveCveId(m);
+    const grypeCve = resolveCveId(m);
+    const cveId = grypeCve.startsWith("CVE-")
+      ? grypeCve
+      : pickAlias(cveAliases?.get(grypeCve), exploited, euvdMap) ?? grypeCve;
     const kev = exploited.get(cveId);
     const vuln: EnrichedVuln = {
       packageName: m.artifact.name,
       packageVersion: m.artifact.version,
       cveId: m.vulnerability.id,
+      aliasCveId: cveId !== m.vulnerability.id && cveId.startsWith("CVE-") ? cveId : null,
       severity: m.vulnerability.severity.toLowerCase(),
       euvdId: euvdMap.get(cveId) ?? kev?.euvdId ?? null,
       inKev: kev !== undefined,

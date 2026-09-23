@@ -7,6 +7,7 @@ import {
   loadExploited,
   getExploitedSource,
   loadEuvdMapping,
+  loadCveAliases,
   enrichVulnerabilities,
   type GrypeMatch,
 } from "@ottersight/scanner";
@@ -27,6 +28,8 @@ interface ScanOptions {
   output?: string;
   ignore?: string[];
   quiet?: boolean;
+  /** Resolve GHSA-only findings to CVEs via OSV.dev (default true) */
+  osv?: boolean;
   version?: string;
 }
 
@@ -71,16 +74,17 @@ export async function scanCommand(scanPath: string, options: ScanOptions): Promi
   // Step 2: Enrichment (EUVD KEV dump incl. EU KEV, EUVD IDs — graceful degradation on network failure)
   const enrichSpinner = quiet ? null : ora("Enriching with EUVD (EU + CISA KEV) data...").start();
 
-  const [exploited, euvdMap] = await Promise.all([
+  const [exploited, euvdMap, cveAliases] = await Promise.all([
     loadExploited(),
     loadEuvdMapping(),
+    options.osv === false ? undefined : loadCveAliases(matches),
   ]);
 
   enrichSpinner?.succeed("Enrichment complete");
   const exploitedSource = getExploitedSource();
 
   // Build enriched vulns from GrypeMatch[] + KEV/EUVD data
-  const vulns = enrichVulnerabilities(matches, exploited, euvdMap);
+  const vulns = enrichVulnerabilities(matches, exploited, euvdMap, cveAliases);
 
   // Count ignored findings with the same dedup key as enrichVulnerabilities()
   const kept = new Set(matches);
