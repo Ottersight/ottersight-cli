@@ -7,6 +7,9 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # Protected environment: a pushed tag waits for a maintainer's approval before anything is
+    # published. The docker job needs this one, so it is gated too.
+    environment: release
     permissions:
       contents: write
       id-token: write
