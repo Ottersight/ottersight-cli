@@ -21,14 +21,14 @@
     }
   },
   "files": ["dist"],
-  "engines": { "node": ">=20" },
+  "engines": { "node": "^22.22.2 || >=24.15.0" },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
+    "@types/node": "^22.20.4",
     "tsup": "^8.5.1",
     "typescript": "^5.8.2"
   }

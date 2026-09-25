@@ -20,18 +20,18 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=20"
+    "node": "^22.22.2 || >=24.15.0"
   },
   "dependencies": {
     "chalk": "^6.0.0",
     "cli-table3": "^0.6.5",
     "commander": "^15.0.0",
     "ora": "^9.3.0",
-    "which": "^6.0.1"
+    "which": "^7.0.0"
   },
   "devDependencies": {
     "@ottersight/scanner": "workspace:*",
-    "@types/node": "^25.5.0",
+    "@types/node": "^22.20.4",
     "@types/which": "^3.0.4",
     "tsup": "^8.5.1",
     "typescript": "^5.8.2"

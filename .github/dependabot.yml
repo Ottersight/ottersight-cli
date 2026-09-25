@@ -32,4 +32,8 @@ updates:
     groups:
       npm-minor-patch:
         update-types: ["minor", "patch"]
+    # @types/node tracks the oldest supported Node major (engines), not the newest release.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 5
