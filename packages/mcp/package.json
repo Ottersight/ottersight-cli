@@ -34,7 +34,7 @@
     "@ottersight/scanner": "workspace:*",
     "@types/node": "^22.20.4",
     "tsup": "^8.5.1",
-    "typescript": "^5.8.2"
+    "typescript": "^7.0.2"
   },
   "scripts": {
     "build": "tsup",
