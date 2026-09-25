@@ -27,7 +27,7 @@ If you're unsure whether your idea belongs here, open a [GitHub Discussion](http
 
 Before you start, make sure you have:
 
-- **Node.js 20+** — [nodejs.org](https://nodejs.org)
+- **Node.js 22.22.2+ or 24.15.0+** — [nodejs.org](https://nodejs.org)
 - **pnpm** — `npm install -g pnpm`
 - **[Syft](https://github.com/anchore/syft)** on PATH — SBOM generation
 - **[Grype](https://github.com/anchore/grype)** on PATH — CVE scanning
