@@ -1,0 +1,61 @@
+OtterSight CLI
+Copyright (c) 2026 Ottersight
+Licensed under the MIT License (see LICENSE).
+
+This product includes or uses third-party software and data. Their licenses
+and terms are listed below and apply to those components, not to OtterSight's
+own code.
+
+================================================================================
+Bundled software (Docker image ghcr.io/ottersight/cli)
+================================================================================
+
+Syft — https://github.com/anchore/syft
+  By Anchore. Licensed under the Apache License 2.0
+  (see LICENSES/Apache-2.0.txt).
+
+Grype — https://github.com/anchore/grype
+  By Anchore. Licensed under the Apache License 2.0
+  (see LICENSES/Apache-2.0.txt).
+
+Both binaries are copied unmodified from the official anchore/syft and
+anchore/grype images. The npm packages do not bundle them; users install
+Syft and Grype themselves. npm dependencies ship their own license files in
+node_modules.
+
+================================================================================
+Vulnerability data
+================================================================================
+
+OtterSight does not redistribute these datasets; it queries or downloads them
+at scan time and shows the results. Terms of the respective source apply.
+
+ENISA EU Vulnerability Database (EUVD) — https://euvd.enisa.europa.eu/
+  Vulnerability data: ENISA EU Vulnerability Database (EUVD), source
+  acknowledged. Reproduction authorised provided the source is acknowledged.
+  OtterSight is not affiliated with or endorsed by ENISA.
+
+Anchore Grype vulnerability database — https://github.com/anchore/grype-db
+  Built by Anchore from upstream sources including the NVD, the GitHub
+  Advisory Database and Linux distribution feeds; the upstream terms apply.
+  grype-db tooling is licensed under the Apache License 2.0.
+
+GitHub Advisory Database — https://github.com/github/advisory-database
+  Licensed under CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/).
+  Received via the Grype database and OSV.dev.
+
+National Vulnerability Database (NVD) — https://nvd.nist.gov/
+  Received via the Grype database. This product uses data from the NVD but
+  is not endorsed or certified by the NVD.
+
+CISA Known Exploited Vulnerabilities (KEV) catalog
+  https://www.cisa.gov/known-exploited-vulnerabilities-catalog
+  Released under CC0 1.0. Received via EUVD's KEV data, with the
+  cisagov/kev-data GitHub mirror as fallback.
+
+Exploit Prediction Scoring System (EPSS) — https://www.first.org/epss/
+  EPSS scores by FIRST, received via the Grype database.
+
+OSV.dev — https://osv.dev/
+  Operated by Google. Used for CVE aliases of GHSA-only findings (disable with
+  --no-osv). Data is subject to the terms of each upstream source.

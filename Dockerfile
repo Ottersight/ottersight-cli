@@ -36,7 +36,7 @@ RUN pnpm install --frozen-lockfile && \
 
 # Create a clean deploy directory with npm (no pnpm symlinks)
 # Remove workspace:* dep — scanner is copied manually below
-RUN mkdir -p /app/deploy && \
+RUN mkdir -p /app/deploy /app/grype-cache && \
     cp -r /app/packages/cli/dist /app/deploy/dist && \
     cat /app/packages/cli/package.json | sed '/"@ottersight\/scanner"/d' > /app/deploy/package.json && \
     cd /app/deploy && npm install --omit=dev --ignore-scripts && \
@@ -55,6 +55,16 @@ COPY --from=builder /app/deploy/node_modules ./node_modules
 # Copy Syft + Grype binaries from official Anchore images
 COPY --from=syft /syft /usr/local/bin/syft
 COPY --from=grype /grype /usr/local/bin/grype
+
+# Licenses and third-party notices (Apache-2.0 requires shipping the license with Syft/Grype)
+COPY LICENSE NOTICE /usr/share/doc/ottersight/
+COPY LICENSES/ /usr/share/doc/ottersight/LICENSES/
+
+# Grype DB cache: nonroot-owned so a named volume mounted here inherits write access
+# (docker run -v ottersight-grype-db:/var/cache/grype ...). Without a volume the DB is
+# downloaded on every run.
+COPY --from=builder --chown=65532:65532 /app/grype-cache /var/cache/grype
+ENV GRYPE_DB_CACHE_DIR=/var/cache/grype
 
 # Set working directory to /repo so "scan ." works with volume mounts
 WORKDIR /repo
