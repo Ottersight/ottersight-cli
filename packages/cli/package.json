@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "@ottersight/scanner": "workspace:*",
-    "@types/node": "^25.5.0",
+    "@types/node": "^26.6.2",
     "@types/which": "^3.0.4",
     "tsup": "^8.5.1",
     "typescript": "^5.8.2"
