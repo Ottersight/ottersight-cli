@@ -103,7 +103,12 @@ ottersight scan .
 
 # Docker (Syft + Grype bundled, nothing else to install)
 docker run --rm -v $(pwd):/repo ghcr.io/ottersight/cli scan .
+
+# Docker with a cached Grype database (recommended for repeated scans)
+docker run --rm -v ottersight-grype-db:/var/cache/grype -v $(pwd):/repo ghcr.io/ottersight/cli scan .
 ```
+
+Without the cache volume, Grype downloads its vulnerability database on every run (about 2 minutes). With the `ottersight-grype-db` volume, repeat scans start in seconds; Grype still checks for a newer database. The unpacked database is about 3 GB, so it is not baked into the image.
 
 Output: colored terminal table grouped by severity, summary line, optional `--output report.md` for Markdown, `--format sarif` for GitHub Code Scanning, or `--format json` with every enriched field (EUVD ID, KEV sources, CVSS, EPSS, CVE alias).
 
@@ -302,3 +307,5 @@ See [SECURITY.md](./SECURITY.md).
 ## License
 
 [MIT](./LICENSE) — Part of the [OtterSight](https://ottersight.com) open-core platform.
+
+Third-party software and data notices: [NOTICE](./NOTICE). The Docker image bundles Syft and Grype (Apache-2.0, [LICENSES/Apache-2.0.txt](./LICENSES/Apache-2.0.txt)); the notices ship in the image under `/usr/share/doc/ottersight/`.
