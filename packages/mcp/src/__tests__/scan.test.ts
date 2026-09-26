@@ -233,4 +233,26 @@ describe("handleScan", () => {
       vi.unstubAllEnvs();
     }
   });
+
+  it("OTTERSIGHT_MIRROR_URL: KEV and GHSA aliases from the mirror, even with EU sources", async () => {
+    const { scanLocal, loadExploited, loadEuvdMapping, loadCveAliases } = await import("@ottersight/scanner");
+    vi.mocked(scanLocal).mockResolvedValue(makeFixtureScanResult([]) as ReturnType<typeof scanLocal> extends Promise<infer T> ? T : never);
+    vi.mocked(loadExploited).mockResolvedValue(new Map());
+    vi.mocked(loadEuvdMapping).mockResolvedValue(new Map());
+    vi.stubEnv("OTTERSIGHT_EU_SOURCES", "1");
+    vi.stubEnv("OTTERSIGHT_MIRROR_URL", "https://mirror.example.eu");
+    try {
+      const { handleScan } = await import("../tools/scan.js");
+      const result = await handleScan({ path: "/tmp/test-project" });
+      expect(vi.mocked(scanLocal).mock.calls[0][0]).toMatchObject({ mirrorUrl: "https://mirror.example.eu" });
+      expect(loadExploited).toHaveBeenCalledWith({
+        euOnly: false,
+        kevUrl: "https://mirror.example.eu/kev/known_exploited_vulnerabilities.json",
+      });
+      expect(vi.mocked(loadCveAliases).mock.calls[0][1]).toEqual({ aliasMapUrl: "https://mirror.example.eu/osv/ghsa-cve.json" });
+      expect((result.content[0] as { text: string }).text).not.toContain("grype.anchore.io");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });

@@ -106,6 +106,14 @@ describe("scanLocal tool environment", () => {
     });
   });
 
+  it("toolEnv points Grype at the data mirror; an explicit grypeDbUrl wins", () => {
+    expect(toolEnv({ mirrorUrl: "https://mirror.example.eu/" }).GRYPE_DB_UPDATE_URL).toBe("https://mirror.example.eu/grype");
+    expect(toolEnv({ mirrorUrl: "https://mirror.example.eu" }).GRYPE_DB_REQUIRE_UPDATE_CHECK).toBe("true");
+    expect(
+      toolEnv({ mirrorUrl: "https://mirror.example.eu", grypeDbUrl: "https://other.example.eu/db" }).GRYPE_DB_UPDATE_URL,
+    ).toBe("https://other.example.eu/db");
+  });
+
   it("toolEnv keeps PATH and does not mutate process.env", () => {
     const env = toolEnv({ euSources: true });
     expect(env.PATH).toBe(process.env.PATH);

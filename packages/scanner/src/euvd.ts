@@ -157,6 +157,8 @@ export interface LoadExploitedOptions {
    * withdrawn CISA entries and no CISA fallback when EUVD is unreachable.
    */
   euOnly?: boolean;
+  /** CISA KEV catalog URL, e.g. an OtterSight data mirror (then no request goes to GitHub) */
+  kevUrl?: string;
 }
 
 /**
@@ -165,7 +167,7 @@ export interface LoadExploitedOptions {
  */
 export async function loadExploited(opts: LoadExploitedOptions = {}): Promise<Map<string, ExploitedInfo>> {
   const finish = async (euvd: Map<string, ExploitedInfo>) =>
-    opts.euOnly ? euvd : dropStaleCisaEntries(euvd, await loadKev());
+    opts.euOnly ? euvd : dropStaleCisaEntries(euvd, await loadKev(opts.kevUrl));
 
   if (exploitedMap && Date.now() - exploitedLoadedAt < MAX_AGE_MS) {
     exploitedSource = "euvd";
@@ -194,7 +196,7 @@ export async function loadExploited(opts: LoadExploitedOptions = {}): Promise<Ma
   // Fallback: CISA only (not in EU-only mode). Not cached, so the next call retries EUVD.
   const fallback = new Map<string, ExploitedInfo>();
   if (!opts.euOnly) {
-    for (const cveId of await loadKev()) {
+    for (const cveId of await loadKev(opts.kevUrl)) {
       fallback.set(cveId, { sources: ["cisa_kev"], dateAdded: null, euvdId: null });
     }
   }

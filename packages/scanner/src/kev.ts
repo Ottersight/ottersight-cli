@@ -7,18 +7,20 @@ const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 let kevSet: Set<string> | null = null;
 let kevLoadedAt = 0;
+let kevLoadedFrom = "";
 
 interface KevCatalog {
   vulnerabilities: Array<{ cveID: string }>;
 }
 
-export async function loadKev(): Promise<Set<string>> {
-  if (kevSet && Date.now() - kevLoadedAt < MAX_AGE_MS) {
+/** CISA KEV CVE IDs. `url` points at a mirror copy of the catalog; default: the GitHub mirror. */
+export async function loadKev(url: string = KEV_URL): Promise<Set<string>> {
+  if (kevSet && kevLoadedFrom === url && Date.now() - kevLoadedAt < MAX_AGE_MS) {
     return kevSet;
   }
 
   try {
-    const res = await fetch(KEV_URL, {
+    const res = await fetch(url, {
       headers: {
         "User-Agent": "OtterSight/1.0 (Security Scanner; +https://ottersight.com)",
         "Accept": "application/json",
@@ -28,6 +30,7 @@ export async function loadKev(): Promise<Set<string>> {
     const data = (await res.json()) as KevCatalog;
     kevSet = new Set(data.vulnerabilities.map((v) => v.cveID));
     kevLoadedAt = Date.now();
+    kevLoadedFrom = url;
     log.info("KEV catalog loaded", { entries: kevSet.size });
     return kevSet;
   } catch (err) {

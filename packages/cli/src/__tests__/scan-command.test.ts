@@ -117,6 +117,18 @@ describe("scanCommand", () => {
     expect(stdout.join("\n")).not.toMatch(/grype\.anchore\.io/);
   });
 
+  it("--mirror: KEV and GHSA aliases from the mirror, even with --eu-sources; no Anchore notice", async () => {
+    const mirror = "https://mirror.example.eu";
+    await run({ euSources: true, mirrorUrl: mirror });
+    expect(vi.mocked(scanner.scanLocal).mock.calls[0][0]).toMatchObject({ euSources: true, mirrorUrl: mirror });
+    expect(scanner.loadExploited).toHaveBeenCalledWith({ euOnly: false, kevUrl: `${mirror}/kev/known_exploited_vulnerabilities.json` });
+    expect(vi.mocked(scanner.loadCveAliases).mock.calls[0][1]).toEqual({ aliasMapUrl: `${mirror}/osv/ghsa-cve.json` });
+    expect(stdout.join("\n")).not.toMatch(/grype\.anchore\.io/);
+
+    await run({ mirrorUrl: mirror, osv: false });
+    expect(scanner.loadCveAliases).toHaveBeenCalledTimes(1); // --no-osv wins over the mirror
+  });
+
   it("exits 1 when the scan itself fails", async () => {
     vi.mocked(scanner.scanLocal).mockRejectedValue(new Error("Grype scan failed: boom"));
     await expect(run({})).rejects.toThrow("process.exit(1)");

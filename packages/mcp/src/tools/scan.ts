@@ -4,6 +4,7 @@ import {
   loadExploited,
   loadEuvdMapping,
   loadCveAliases,
+  planSources,
   enrichVulnerabilities,
   getExploitedSource,
   DATA_ATTRIBUTION,
@@ -17,21 +18,23 @@ const CTA = "Full SBOM, component tracking, and scheduled scans -> ottersight.co
 export async function handleScan(input: { path: string }) {
   const resolvedPath = path.resolve(input.path);
 
-  // OTTERSIGHT_EU_SOURCES=1: EUVD only (no CISA, no OSV), no Syft/Grype update checks.
+  // OTTERSIGHT_EU_SOURCES=1: EUVD only (no CISA, no OSV unless a mirror is set), no Syft/Grype update checks.
   // OTTERSIGHT_GRYPE_DB_URL: Grype DB listing base URL (EU mirror).
+  // OTTERSIGHT_MIRROR_URL: OtterSight data mirror (Grype DB, GHSA → CVE map, CISA KEV).
+  // OTTERSIGHT_NO_OSV=1: never resolve GHSA-only findings to CVEs.
   const euSources = process.env.OTTERSIGHT_EU_SOURCES === "1";
   const grypeDbUrl = process.env.OTTERSIGHT_GRYPE_DB_URL || undefined;
+  const mirrorUrl = process.env.OTTERSIGHT_MIRROR_URL || undefined;
+  const sources = planSources({ euSources, mirrorUrl, osv: process.env.OTTERSIGHT_NO_OSV !== "1" });
 
   const [scanResult, exploited, euvdMap] = await Promise.all([
-    scanLocal({ path: resolvedPath, timeout: 120_000, euSources, grypeDbUrl }),
-    loadExploited({ euOnly: euSources }),
+    scanLocal({ path: resolvedPath, timeout: 120_000, euSources, grypeDbUrl, mirrorUrl }),
+    loadExploited(sources.exploited),
     loadEuvdMapping(),
   ]);
 
   const matches = scanResult.grype.matches ?? [];
-  // OTTERSIGHT_NO_OSV=1 keeps GHSA-only findings off OSV.dev (Google, US)
-  const cveAliases =
-    euSources || process.env.OTTERSIGHT_NO_OSV === "1" ? undefined : await loadCveAliases(matches);
+  const cveAliases = sources.aliases ? await loadCveAliases(matches, sources.aliases) : undefined;
   const enriched = enrichVulnerabilities(matches, exploited, euvdMap, cveAliases);
 
   // Sort by severity
@@ -62,8 +65,8 @@ export async function handleScan(input: { path: string }) {
         ? "\n> Known-exploited data (EUVD, CISA KEV) could not be loaded; exploitation flags are missing.\n"
         : "\n> ENISA EUVD was unreachable; known-exploited data may be incomplete (EU KEV missing or outdated).\n";
   const noMirror =
-    euSources && !grypeDbUrl
-      ? "\n> EU sources: no OTTERSIGHT_GRYPE_DB_URL set, so the Grype vulnerability DB still comes from Anchore (grype.anchore.io, US).\n"
+    euSources && !grypeDbUrl && !mirrorUrl
+      ? "\n> EU sources: no OTTERSIGHT_MIRROR_URL or OTTERSIGHT_GRYPE_DB_URL set, so the Grype vulnerability DB still comes from Anchore (grype.anchore.io, US).\n"
       : "";
   const text = renderMcpMarkdown(displayVulns, counts, truncated) + degraded + noMirror;
 

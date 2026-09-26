@@ -51,6 +51,8 @@ export interface ScanLocalInput {
   euSources?: boolean;
   /** Grype DB listing base URL (e.g. an EU mirror; Grype appends /v6/latest.json). Default: Anchore */
   grypeDbUrl?: string;
+  /** OtterSight data mirror base URL; the Grype DB comes from `{mirror}/grype` unless grypeDbUrl is set */
+  mirrorUrl?: string;
 }
 
 export interface ScanMeta {

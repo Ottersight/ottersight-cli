@@ -8,6 +8,7 @@ import {
   getExploitedSource,
   loadEuvdMapping,
   loadCveAliases,
+  planSources,
   enrichVulnerabilities,
   type GrypeMatch,
 } from "@ottersight/scanner";
@@ -26,19 +27,21 @@ const EXPLOITED_SOURCE_NOTICE = {
 } as const;
 
 const EU_SOURCES_NO_MIRROR_NOTICE =
-  "Note: --eu-sources without --grype-db-url: the Grype vulnerability DB is still downloaded from Anchore (grype.anchore.io, US).";
+  "Note: --eu-sources without --mirror or --grype-db-url: the Grype vulnerability DB is still downloaded from Anchore (grype.anchore.io, US), and GHSA-only findings are not resolved to CVEs.";
 
 interface ScanOptions {
   format?: "table" | "sarif" | "json";
   output?: string;
   ignore?: string[];
   quiet?: boolean;
-  /** Resolve GHSA-only findings to CVEs via OSV.dev (default true; always off with euSources) */
+  /** Resolve GHSA-only findings to CVEs (default true; via the mirror, else OSV.dev; off with euSources and no mirror) */
   osv?: boolean;
   /** No US endpoints for enrichment (EUVD only) and no Syft/Grype update checks */
   euSources?: boolean;
   /** Grype DB listing base URL (EU mirror) */
   grypeDbUrl?: string;
+  /** OtterSight data mirror base URL: Grype DB, GHSA → CVE map and CISA KEV instead of US endpoints */
+  mirrorUrl?: string;
   /** Exit 1 when a finding reaches this severity (or is known exploited, "kev") */
   failOn?: FailOnLevel;
   version?: string;
@@ -72,7 +75,7 @@ export async function scanCommand(scanPath: string, options: ScanOptions): Promi
   const scanSpinner = quiet ? null : ora("Generating SBOM with Syft...").start();
   let scanResult;
   try {
-    scanResult = await scanLocal({ path: resolvedPath, euSources, grypeDbUrl: options.grypeDbUrl });
+    scanResult = await scanLocal({ path: resolvedPath, euSources, grypeDbUrl: options.grypeDbUrl, mirrorUrl: options.mirrorUrl });
     scanSpinner?.succeed("SBOM generated, vulnerabilities analyzed");
   } catch (err) {
     scanSpinner?.fail("Scan failed");
@@ -86,10 +89,11 @@ export async function scanCommand(scanPath: string, options: ScanOptions): Promi
   // Step 2: Enrichment (EUVD KEV dump incl. EU KEV, EUVD IDs — graceful degradation on network failure)
   const enrichSpinner = quiet ? null : ora("Enriching with EUVD (EU + CISA KEV) data...").start();
 
+  const sources = planSources({ euSources, mirrorUrl: options.mirrorUrl, osv: options.osv });
   const [exploited, euvdMap, cveAliases] = await Promise.all([
-    loadExploited({ euOnly: euSources }),
+    loadExploited(sources.exploited),
     loadEuvdMapping(),
-    euSources || options.osv === false ? undefined : loadCveAliases(matches),
+    sources.aliases ? loadCveAliases(matches, sources.aliases) : undefined,
   ]);
 
   enrichSpinner?.succeed("Enrichment complete");
@@ -138,7 +142,7 @@ export async function scanCommand(scanPath: string, options: ScanOptions): Promi
   if (exploitedSource !== "euvd") {
     status(chalk.yellow(EXPLOITED_SOURCE_NOTICE[exploitedSource]));
   }
-  if (euSources && !options.grypeDbUrl) {
+  if (euSources && !options.grypeDbUrl && !options.mirrorUrl) {
     status(chalk.yellow(EU_SOURCES_NO_MIRROR_NOTICE));
   }
   if (ignoredCount > 0) {
