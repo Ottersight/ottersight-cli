@@ -246,9 +246,7 @@ For the MCP server, set `OTTERSIGHT_EU_SOURCES=1` and `OTTERSIGHT_GRYPE_DB_URL`.
 
 With `--eu-sources` and a Grype database mirror hosted in the EU, no US endpoint is contacted at scan time. Without a mirror, the database download from Anchore (US) remains.
 
-This controls where the data is served from, not where it originates: the Grype database is built from NVD, the GitHub Advisory Database and distro feeds, and EUVD also republishes CVE and CISA KEV data. So the accurate claim is "vulnerability data served from EU infrastructure", not "EU-sourced data".
-
-Note: the Grype database itself is compiled from sources that include US ones (NVD, GitHub Advisory Database, CISA KEV and FIRST EPSS data). `--eu-sources` controls which endpoints are contacted at scan time, not where the data originates.
+Note: the Grype database itself is compiled from sources that include US ones (NVD, GitHub Advisory Database, CISA KEV and FIRST EPSS data). `--eu-sources` controls which endpoints are contacted at scan time, not where the data originates: "vulnerability data served from EU infrastructure", not "EU-sourced data".
 
 ## OtterSight Cloud
 
