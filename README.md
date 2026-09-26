@@ -244,7 +244,23 @@ ottersight scan . --eu-sources --grype-db-url https://<your-mirror>/databases
 
 For the MCP server, set `OTTERSIGHT_EU_SOURCES=1` and `OTTERSIGHT_GRYPE_DB_URL`.
 
-With `--eu-sources` and a Grype database mirror hosted in the EU, no US endpoint is contacted at scan time. Without a mirror, the database download from Anchore (US) remains.
+### Data mirror
+
+An OtterSight data mirror serves every US-hosted source from one EU (or in-house) host, so US providers never see which advisories or packages you have. They only see the mirror downloading complete datasets.
+
+```bash
+ottersight scan . --eu-sources --mirror https://<your-mirror>
+```
+
+| Path under the mirror | Content | Replaces |
+|---|---|---|
+| `/grype/v6/latest.json` + archive | Grype vulnerability DB, same layout as `grype.anchore.io/databases` | Anchore (US) |
+| `/osv/ghsa-cve.json` | `{ "GHSA-…": ["CVE-…"] }`, downloaded once per day and looked up locally, so no advisory ID leaves your machine | per-advisory OSV.dev requests (Google, US) |
+| `/kev/known_exploited_vulnerabilities.json` | CISA KEV catalog | GitHub (US) |
+
+With a mirror, `--eu-sources` keeps GHSA → CVE resolution and the CISA KEV cross-check (without one, it drops both). `--grype-db-url` still overrides the Grype part; `--no-osv` still turns alias resolution off. MCP server: `OTTERSIGHT_MIRROR_URL`.
+
+With `--eu-sources` and a mirror (or a Grype database mirror) hosted in the EU, no US endpoint is contacted at scan time. Without one, the database download from Anchore (US) remains.
 
 Note: the Grype database itself is compiled from sources that include US ones (NVD, GitHub Advisory Database, CISA KEV and FIRST EPSS data). `--eu-sources` controls which endpoints are contacted at scan time, not where the data originates: "vulnerability data served from EU infrastructure", not "EU-sourced data".
 

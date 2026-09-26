@@ -66,4 +66,20 @@ describe("loadKev", () => {
 
     vi.unstubAllGlobals();
   });
+
+  it("loads the catalog from a mirror URL instead of GitHub", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ vulnerabilities: [{ cveID: "CVE-2024-1234" }] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { loadKev } = await import("../kev.js");
+    const url = "https://mirror.example.eu/kev/known_exploited_vulnerabilities.json";
+    const result = await loadKev(url);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe(url);
+    expect(result.has("CVE-2024-1234")).toBe(true);
+  });
 });

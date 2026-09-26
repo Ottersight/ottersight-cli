@@ -95,3 +95,46 @@ describe("loadCveAliases", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe("loadCveAliases with a mirror alias map", () => {
+  const MAP_URL = "https://mirror.example.eu/osv/ghsa-cve.json";
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.resetModules();
+    fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("downloads the map once and resolves locally, never contacting OSV.dev", async () => {
+    fetchMock.mockResolvedValue(json({ "GHSA-aaaa-bbbb-cccc": ["CVE-2024-0001", "OSV-2024-1"] }));
+    const { loadCveAliases } = await import("../osv.js");
+    const matches = [match("GHSA-aaaa-bbbb-cccc"), match("GHSA-dddd-eeee-ffff")];
+
+    const first = await loadCveAliases(matches, { aliasMapUrl: MAP_URL });
+    const second = await loadCveAliases(matches, { aliasMapUrl: MAP_URL });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe(MAP_URL);
+    expect(first.get("GHSA-aaaa-bbbb-cccc")).toEqual(["CVE-2024-0001"]);
+    expect(first.get("GHSA-dddd-eeee-ffff")).toEqual([]); // not in the map = no CVE
+    expect(second).toEqual(first);
+  });
+
+  it("skips the download when no finding needs a CVE", async () => {
+    const { loadCveAliases } = await import("../osv.js");
+    const result = await loadCveAliases([match("CVE-2021-23337")], { aliasMapUrl: MAP_URL });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.size).toBe(0);
+  });
+
+  it("returns an empty map when the mirror fails (never throws, no OSV fallback)", async () => {
+    fetchMock.mockResolvedValue(new Response("nope", { status: 503 }));
+    const { loadCveAliases } = await import("../osv.js");
+    const result = await loadCveAliases([match("GHSA-aaaa-bbbb-cccc")], { aliasMapUrl: MAP_URL });
+    expect(result.size).toBe(0);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe(MAP_URL);
+  });
+});

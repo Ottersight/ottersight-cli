@@ -34,6 +34,9 @@ export {
   DATA_ATTRIBUTION,
 } from "./enrich.js";
 export { loadCveAliases } from "./osv.js";
+export type { LoadCveAliasesOptions } from "./osv.js";
+export { mirrorUrls, planSources } from "./mirror.js";
+export type { MirrorUrls, SourceOptions, SourcePlan } from "./mirror.js";
 export { lookupLatestVersions } from "./registries.js";
 
 // Logger (exposed for consumers who want structured logging)

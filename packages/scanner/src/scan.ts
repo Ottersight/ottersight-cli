@@ -1,20 +1,22 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { log } from "./logger.js";
+import { mirrorUrls } from "./mirror.js";
 import type { ScanLocalInput, ScanResult, SyftOutput, GrypeOutput, ScanMeta } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 
 /** Environment for Syft/Grype. Env names verified against grype 0.118.0 / syft (`<tool> config`). */
-export function toolEnv(input: Pick<ScanLocalInput, "euSources" | "grypeDbUrl">): NodeJS.ProcessEnv {
+export function toolEnv(input: Pick<ScanLocalInput, "euSources" | "grypeDbUrl" | "mirrorUrl">): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...process.env };
+  const grypeDbUrl = resolveGrypeDbUrl(input);
   if (input.euSources) {
     env.SYFT_CHECK_FOR_APP_UPDATE = "false";
     env.GRYPE_CHECK_FOR_APP_UPDATE = "false";
     env.GRYPE_EXTERNAL_SOURCES_ENABLE = "false";
   }
-  if (input.grypeDbUrl) {
-    env.GRYPE_DB_UPDATE_URL = input.grypeDbUrl;
+  if (grypeDbUrl) {
+    env.GRYPE_DB_UPDATE_URL = grypeDbUrl;
     // Fail loudly when the mirror is unreachable instead of scanning with an outdated DB.
     env.GRYPE_DB_REQUIRE_UPDATE_CHECK = "true";
     // Grype skips the update check for 2 h after the last one, so a cached DB from another
@@ -22,6 +24,11 @@ export function toolEnv(input: Pick<ScanLocalInput, "euSources" | "grypeDbUrl">)
     env.GRYPE_DB_MAX_UPDATE_CHECK_FREQUENCY = "0s";
   }
   return env;
+}
+
+/** Explicit Grype DB URL, else the mirror's, else undefined (Grype's default, Anchore). */
+export function resolveGrypeDbUrl(input: Pick<ScanLocalInput, "grypeDbUrl" | "mirrorUrl">): string | undefined {
+  return input.grypeDbUrl ?? (input.mirrorUrl ? mirrorUrls(input.mirrorUrl).grypeDb : undefined);
 }
 
 export async function scanLocal(input: ScanLocalInput): Promise<ScanResult> {
@@ -68,8 +75,9 @@ export async function scanLocal(input: ScanLocalInput): Promise<ScanResult> {
     const msg = err instanceof Error ? err.message : String(err);
     log.error("Grype failed", { path: input.path, error: msg, stderr });
     // With --quiet Grype prints nothing, so a mirror problem would otherwise show as a bare "Command failed".
-    const hint = input.grypeDbUrl
-      ? ` (check that the Grype DB mirror ${input.grypeDbUrl} is reachable and serves /v6/latest.json)`
+    const grypeDbUrl = resolveGrypeDbUrl(input);
+    const hint = grypeDbUrl
+      ? ` (check that the Grype DB mirror ${grypeDbUrl} is reachable and serves /v6/latest.json)`
       : "";
     throw new Error((stderr ? `Grype scan failed: ${stderr}` : `Grype scan failed: ${msg}`) + hint);
   }

@@ -33,13 +33,17 @@ program
       .choices([...FAIL_ON_LEVELS]),
   )
   .option("--no-osv", "do not ask OSV.dev (Google, US) for CVE IDs of GHSA-only findings")
-  .option("--eu-sources", "contact no US endpoints for enrichment: EUVD only (no CISA, no OSV), no Syft/Grype update checks")
+  .option("--eu-sources", "contact no US endpoints for enrichment: EUVD only (no CISA, no OSV unless --mirror), no Syft/Grype update checks")
   .addOption(
     new Option("--grype-db-url <url>", "Grype DB listing base URL, e.g. an EU mirror (Grype appends /v6/latest.json)")
       .env("OTTERSIGHT_GRYPE_DB_URL"),
   )
-  .action(async (scanPath: string, options: { format: "table" | "sarif" | "json"; output?: string; ignore: string[]; quiet?: boolean; osv: boolean; euSources?: boolean; grypeDbUrl?: string; failOn?: FailOnLevel }) => {
-    await scanCommand(scanPath, { ...options, version: __OTTERSIGHT_VERSION__ });
+  .addOption(
+    new Option("--mirror <url>", "OtterSight data mirror: Grype DB, GHSA → CVE map and CISA KEV from there instead of US endpoints")
+      .env("OTTERSIGHT_MIRROR_URL"),
+  )
+  .action(async (scanPath: string, options: { format: "table" | "sarif" | "json"; output?: string; ignore: string[]; quiet?: boolean; osv: boolean; euSources?: boolean; grypeDbUrl?: string; mirror?: string; failOn?: FailOnLevel }) => {
+    await scanCommand(scanPath, { ...options, mirrorUrl: options.mirror, version: __OTTERSIGHT_VERSION__ });
   });
 
 program.addHelpText("after", `

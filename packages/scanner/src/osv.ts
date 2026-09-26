@@ -8,6 +8,7 @@ const OSV_VULN_URL = "https://api.osv.dev/v1/vulns/";
 const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 const CONCURRENCY = 8;
 const TIMEOUT_MS = 10_000;
+const BULK_TIMEOUT_MS = 60_000;
 const USER_AGENT = "OtterSight/1.0 (Security Scanner; +https://ottersight.com)";
 
 // Advisory ID → CVE aliases (empty = OSV knows no CVE). Failed lookups are not cached.
@@ -43,12 +44,58 @@ async function fetchCveAliases(id: string): Promise<string[] | null> {
   }
 }
 
+// Bulk GHSA → CVE map from a data mirror, keyed by mirror URL. Failed loads are not cached.
+const bulkCache = new Map<string, { aliases: Map<string, string[]>; at: number }>();
+
+async function loadBulkAliases(url: string): Promise<Map<string, string[]> | null> {
+  const hit = bulkCache.get(url);
+  if (hit && Date.now() - hit.at < MAX_AGE_MS) return hit.aliases;
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+      signal: AbortSignal.timeout(BULK_TIMEOUT_MS),
+    });
+    if (!res.ok) throw new Error(`alias map fetch failed: ${res.status}`);
+    const body = (await res.json()) as unknown;
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("alias map is not an object");
+    const aliases = new Map<string, string[]>();
+    for (const [id, cves] of Object.entries(body)) {
+      if (Array.isArray(cves)) aliases.set(id, cves.filter((c): c is string => typeof c === "string" && c.startsWith("CVE-")));
+    }
+    bulkCache.set(url, { aliases, at: Date.now() });
+    log.info("OSV alias map loaded", { entries: aliases.size });
+    return aliases;
+  } catch (err) {
+    log.warn("osv_alias_map_failed", { url, error: err instanceof Error ? err.message : String(err) });
+    return hit?.aliases ?? null;
+  }
+}
+
+export interface LoadCveAliasesOptions {
+  /**
+   * GHSA → CVE map from an OtterSight data mirror. The whole map is downloaded and looked up
+   * locally, so no advisory ID leaves the machine (not even to the mirror).
+   */
+  aliasMapUrl?: string;
+}
+
 /**
- * CVE aliases from OSV for every GHSA-only finding, keyed by advisory ID.
+ * CVE aliases for every GHSA-only finding, keyed by advisory ID: from the mirror's alias map
+ * when `aliasMapUrl` is set, otherwise one OSV.dev request per advisory.
  * Never throws: failed lookups are simply missing from the result.
  */
-export async function loadCveAliases(matches: GrypeMatch[]): Promise<Map<string, string[]>> {
+export async function loadCveAliases(matches: GrypeMatch[], opts: LoadCveAliasesOptions = {}): Promise<Map<string, string[]>> {
   const result = new Map<string, string[]>();
+  if (opts.aliasMapUrl) {
+    const ids = idsNeedingCve(matches);
+    if (ids.length === 0) return result;
+    const aliases = await loadBulkAliases(opts.aliasMapUrl);
+    if (!aliases) return result;
+    // The map covers every GHSA advisory, so an ID missing from it has no CVE.
+    for (const id of ids) result.set(id, aliases.get(id) ?? []);
+    return result;
+  }
+
   const pending: string[] = [];
   for (const id of idsNeedingCve(matches)) {
     const hit = cache.get(id);
