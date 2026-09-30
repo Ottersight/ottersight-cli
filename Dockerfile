@@ -15,7 +15,7 @@ FROM anchore/syft:v1.52.0@sha256:500e2d872ac019436926e8322b4fc1f39441d94d21f6f40
 FROM anchore/grype:v0.119.0@sha256:8c2c9234a345577a6d321a4753aa3ee1276d8975c8452d2344a56b57733ecad3 AS grype
 
 # Stage 3: Build stage — cgr.dev/chainguard/node:latest-dev has npm, pnpm, and shell
-FROM cgr.dev/chainguard/node:latest-dev@sha256:ea7d0133c47e062b7754da987c05d4d1206e0a9e357a49679271d071f48e65e2 AS builder
+FROM cgr.dev/chainguard/node:latest-dev@sha256:5a20e7e0dd4670cff137f90c53157ec9c905d6531a4a9ee17eda4099155410b8 AS builder
 WORKDIR /app
 
 # Copy all source files with correct ownership (Chainguard runs as node user)
@@ -45,7 +45,7 @@ RUN mkdir -p /app/deploy /app/grype-cache && \
     cp /app/packages/scanner/package.json /app/deploy/node_modules/@ottersight/scanner/package.json
 
 # Stage 4: Minimal runtime — Chainguard distroless Node (no shell, nonroot user)
-FROM cgr.dev/chainguard/node:latest@sha256:3d462c24088fa9189404fc19b837f6b39636671571491c9c5dd7b75e3e2df550
+FROM cgr.dev/chainguard/node:latest@sha256:67b35eec824b295fe0cc2a0e230f85adca6caef692725f6abf1581ad1848b04e
 WORKDIR /app
 
 # Copy deployed CLI (dist + real node_modules, no symlinks)
