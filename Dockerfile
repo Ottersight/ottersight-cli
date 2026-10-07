@@ -9,13 +9,13 @@
 # All base images are pinned by digest (tag kept for readability); Dependabot bumps them.
 
 # Stage 1: Syft binary — official Anchore image, binary at /syft
-FROM anchore/syft:v1.52.0@sha256:500e2d872ac019436926e8322b4fc1f39441d94d21f6f4046c6ff29b30e8cb02 AS syft
+FROM anchore/syft:v1.54.0@sha256:0356562f495d432056237fbea5cbc2d4839c9c75cd500784a66de2e7cc95ca7c AS syft
 
 # Stage 2: Grype binary — official Anchore image, binary at /grype
-FROM anchore/grype:v0.119.0@sha256:8c2c9234a345577a6d321a4753aa3ee1276d8975c8452d2344a56b57733ecad3 AS grype
+FROM anchore/grype:v0.120.0@sha256:5c88961f4130e830542d441c7ed6c78baa28e799163abac53d2be4923fb5ab7d AS grype
 
 # Stage 3: Build stage — cgr.dev/chainguard/node:latest-dev has npm, pnpm, and shell
-FROM cgr.dev/chainguard/node:latest-dev@sha256:ea7d0133c47e062b7754da987c05d4d1206e0a9e357a49679271d071f48e65e2 AS builder
+FROM cgr.dev/chainguard/node:latest-dev@sha256:617061855f341917060d95d164930fd949ed19e66fdc2918eabd2eefe2b29ae6 AS builder
 WORKDIR /app
 
 # Copy all source files with correct ownership (Chainguard runs as node user)
@@ -45,7 +45,7 @@ RUN mkdir -p /app/deploy /app/grype-cache && \
     cp /app/packages/scanner/package.json /app/deploy/node_modules/@ottersight/scanner/package.json
 
 # Stage 4: Minimal runtime — Chainguard distroless Node (no shell, nonroot user)
-FROM cgr.dev/chainguard/node:latest@sha256:3d462c24088fa9189404fc19b837f6b39636671571491c9c5dd7b75e3e2df550
+FROM cgr.dev/chainguard/node:latest@sha256:4dcf9bbb401b4ba7e1fb65dcc5dbd42d71bac515ed6a4662126424017d51df8e
 WORKDIR /app
 
 # Copy deployed CLI (dist + real node_modules, no symlinks)
